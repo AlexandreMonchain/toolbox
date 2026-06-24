@@ -1,0 +1,71 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}BurnNote — Secret{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">🔥</div>
+        <h1 class="hero-title">Votre secret</h1>
+        <p class="hero-subtitle">
+            {% if viewsRemaining > 0 %}
+                Il reste {{ viewsRemaining }} vue{{ viewsRemaining > 1 ? 's' : '' }} avant destruction.
+            {% else %}
+                Ce secret vient d'être détruit. Il n'est plus accessible.
+            {% endif %}
+        </p>
+    </section>
+
+    <div class="container" style="max-width: 640px;">
+        <div class="card-modern">
+
+            <label class="form-label">Secret</label>
+            <div class="d-flex gap-2 align-items-start">
+                <textarea
+                    id="secret-value"
+                    class="form-control"
+                    rows="5"
+                    readonly
+                    spellcheck="false"
+                >{{ secret }}</textarea>
+                <button class="btn btn-secondary" onclick="copySecret()" id="copy-btn" title="Copier">
+                    <i class="fas fa-copy" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{{ path('burnnote_index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Créer un BurnNote
+                </a>
+            </div>
+
+        </div>
+
+        <p class="text-muted text-center mt-3" style="font-size: 0.8rem;">
+            <i class="fas fa-fire" aria-hidden="true"></i>
+            {% if viewsRemaining <= 0 %}
+                Ce secret a été définitivement supprimé de nos serveurs.
+            {% else %}
+                Ce secret sera supprimé après la dernière vue.
+            {% endif %}
+        </p>
+    </div>
+{% endblock %}
+
+{% block script %}
+<script>
+function copySecret() {
+    const textarea = document.getElementById('secret-value');
+    const btn      = document.getElementById('copy-btn');
+    navigator.clipboard.writeText(textarea.value).then(() => {
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-secondary');
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-copy"></i>';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-secondary');
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}
