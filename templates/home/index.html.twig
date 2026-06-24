@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Toolbox — Outils pour RSI & sysadmins{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">🧰</div>
+        <h1 class="hero-title">Toolbox</h1>
+        <p class="hero-subtitle">Boîte à outils open source pour RSI et sysadmins. Simple, sécurisée, hébergée.</p>
+    </section>
+
+    <div class="tools-grid">
+
+        <a href="#" class="tool-card">
+            <div class="tool-card-icon purple">
+                <i class="fas fa-fire" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">BurnNote</p>
+            <p class="tool-card-desc">Partagez un secret de façon sécurisée via un lien à usage unique avec TTL.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="#" class="tool-card">
+            <div class="tool-card-icon teal">
+                <i class="fas fa-certificate" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Générateur CSR</p>
+            <p class="tool-card-desc">Générez vos CSR pour certificats SSL directement dans le navigateur. La clé privée ne quitte jamais votre machine.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <div class="tool-card disabled">
+            <div class="tool-card-icon blue">
+                <i class="fas fa-network-wired" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Sous-réseaux IP</p>
+            <p class="tool-card-desc">Calculez vos plages réseau, masques de sous-réseau et adresses de diffusion.</p>
+            <span class="tool-card-badge badge-soon">Bientôt</span>
+        </div>
+
+        <div class="tool-card disabled">
+            <div class="tool-card-icon gray">
+                <i class="fas fa-plug" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Port checker</p>
+            <p class="tool-card-desc">Vérifiez si un port est ouvert sur un hôte distant.</p>
+            <span class="tool-card-badge badge-later">À venir</span>
+        </div>
+
+        <div class="tool-card disabled">
+            <div class="tool-card-icon amber">
+                <i class="fas fa-paste" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">DropText</p>
+            <p class="tool-card-desc">Partagez rapidement un extrait de texte ou de code entre collègues.</p>
+            <span class="tool-card-badge badge-later">À venir</span>
+        </div>
+
+    </div>
+{% endblock %}
