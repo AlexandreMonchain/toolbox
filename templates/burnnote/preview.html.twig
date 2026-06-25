@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}BurnNote — Un secret vous attend{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">🔥</div>
+        <h1 class="hero-title">Un secret vous attend</h1>
+        <p class="hero-subtitle">
+            Ce lien contient un message chiffré.
+            {% if maxViews >= 9223372036854775807 %}
+                Il peut être consulté un nombre illimité de fois.
+            {% elseif maxViews == 1 %}
+                Il sera détruit après cette lecture.
+            {% else %}
+                Il peut encore être consulté {{ maxViews }} fois.
+            {% endif %}
+        </p>
+    </section>
+
+    <div class="container text-center" style="max-width: 480px;">
+        <div class="card-modern mb-4" style="padding: 2rem;">
+            <p class="text-muted mb-4" style="font-size: 0.9rem;">
+                <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                En cliquant sur le bouton ci-dessous, vous <strong>consommez une vue</strong>.<br>
+                Si ce lien n'est plus disponible après, il a expiré ou a déjà été consulté.
+            </p>
+            <form method="POST" action="{{ path('burnnote_show', {token: token}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('burnnote_reveal') }}">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-lock-open" aria-hidden="true"></i> Révéler le secret
+                </button>
+            </form>
+        </div>
+
+        <p class="text-muted" style="font-size: 0.8rem;">
+            <i class="fas fa-lock" aria-hidden="true"></i>
+            Chiffré AES-256-GCM · Hébergé sur infrastructure privée
+        </p>
+    </div>
+{% endblock %}

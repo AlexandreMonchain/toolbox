@@ -32,10 +32,15 @@
                 </button>
             </div>
 
-            <div class="text-center mt-4">
+            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
                 <a href="{{ path('burnnote_index') }}" class="btn btn-outline-primary">
                     <i class="fas fa-plus" aria-hidden="true"></i> Créer un BurnNote
                 </a>
+                {% if viewsRemaining > 0 %}
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#burnModal">
+                    <i class="fas fa-fire" aria-hidden="true"></i> Burn this note
+                </button>
+                {% endif %}
             </div>
 
         </div>
@@ -49,6 +54,33 @@
             {% endif %}
         </p>
     </div>
+
+    {% if viewsRemaining > 0 %}
+    <div class="modal fade" id="burnModal" tabindex="-1" aria-labelledby="burnModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-hover);">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="burnModalLabel" style="color: var(--color-text-primary);">
+                        <i class="fas fa-fire text-danger"></i> Confirmer la suppression
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body" style="color: var(--color-text-secondary);">
+                    Êtes-vous sûr de vouloir supprimer définitivement ce secret ? Cette action est irréversible.
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form method="POST" action="{{ path('burnnote_burn', {token: token}) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('burnnote_burn') }}">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-fire" aria-hidden="true"></i> Supprimer maintenant
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 {% endblock %}
 
 {% block script %}
