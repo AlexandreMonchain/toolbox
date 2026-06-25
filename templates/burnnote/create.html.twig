@@ -28,6 +28,7 @@
                         rows="4"
                         placeholder="Mot de passe, token, clé SSH..."
                         required
+                        maxlength="30000"
                         autocomplete="off"
                         spellcheck="false"
                     ></textarea>
@@ -261,12 +262,31 @@
             const data = await res.json();
             const list = document.getElementById('gen-results');
             list.style.display = 'block';
-            list.innerHTML = '<div class="gen-results-grid">' + data.passwords.map(p => `
-                <div class="gen-result-item" onclick="usePassphrase(this)" title="Cliquer pour utiliser">
-                    <span class="gen-result-text">${p.password}</span>
-                    <i class="fas fa-arrow-right gen-result-arrow" aria-hidden="true"></i>
-                </div>
-            `).join('') + '</div>';
+
+            const grid = document.createElement('div');
+            grid.className = 'gen-results-grid';
+
+            data.passwords.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'gen-result-item';
+                item.title = 'Cliquer pour utiliser';
+                item.addEventListener('click', () => usePassphrase(item));
+
+                const span = document.createElement('span');
+                span.className = 'gen-result-text';
+                span.textContent = p.password;
+
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-arrow-right gen-result-arrow';
+                icon.setAttribute('aria-hidden', 'true');
+
+                item.appendChild(span);
+                item.appendChild(icon);
+                grid.appendChild(item);
+            });
+
+            list.innerHTML = '';
+            list.appendChild(grid);
         } catch(e) {
             document.getElementById('gen-results').innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Impossible de contacter passphrase.fr</p>';
             document.getElementById('gen-results').style.display = 'block';

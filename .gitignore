@@ -12,6 +12,7 @@
 ###> local config ###
 /.env.dev
 /.claude/
+/CLAUDE.md
 ###< local config ###
 
 ###> documentation (privée pour l'instant) ###

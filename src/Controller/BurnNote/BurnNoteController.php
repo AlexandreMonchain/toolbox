@@ -6,6 +6,7 @@ use App\Entity\BurnNote;
 use App\Repository\BurnNoteRepository;
 use App\Service\BurnNote\EncryptionService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,6 +18,8 @@ use Symfony\Component\DependencyInjection\Attribute\Target;
 #[Route('/burn', name: 'burnnote_')]
 class BurnNoteController extends AbstractController
 {
+    public function __construct(private readonly LoggerInterface $logger) {}
+
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(): Response
     {
@@ -42,8 +45,14 @@ class BurnNoteController extends AbstractController
         Request $request,
         EncryptionService $encryption,
         EntityManagerInterface $em,
+        #[Target('burnNoteCreateLimiter')] RateLimiterFactory $createLimiter,
     ): Response {
+        if ($limited = $this->checkRateLimit($request, $createLimiter)) {
+            return $limited;
+        }
+
         if (!$this->isCsrfTokenValid('burnnote_create', $request->request->get('_csrf_token'))) {
+            $this->logger->warning('burnnote.csrf_fail', ['action' => 'create', 'ip' => $request->getClientIp()]);
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
@@ -54,6 +63,12 @@ class BurnNoteController extends AbstractController
         if ($secret === '') {
             return $this->render('burnnote/create.html.twig', [
                 'error' => 'Le secret ne peut pas être vide.',
+            ]);
+        }
+
+        if (mb_strlen($secret) > 30000) {
+            return $this->render('burnnote/create.html.twig', [
+                'error' => 'Le secret ne peut pas dépasser 30 000 caractères.',
             ]);
         }
 
@@ -76,6 +91,13 @@ class BurnNoteController extends AbstractController
 
         $url = $this->generateUrl('burnnote_show', ['token' => $note->getToken()], \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL);
 
+        $this->logger->info('burnnote.created', [
+            'ip'       => $request->getClientIp(),
+            'ttl_h'    => $ttl,
+            'maxViews' => $unlimited ? 'unlimited' : $maxViews,
+            'token'    => substr($note->getToken(), 0, 8),
+        ]);
+
         $request->getSession()->set('burnnote_created', [
             'url'      => $url,
             'maxViews' => $note->getViewsRemaining(),
@@ -88,6 +110,10 @@ class BurnNoteController extends AbstractController
     {
         $limiter = $factory->create($request->getClientIp());
         if (!$limiter->consume(1)->isAccepted()) {
+            $this->logger->warning('burnnote.rate_limit', [
+                'ip'   => $request->getClientIp(),
+                'path' => $request->getPathInfo(),
+            ]);
             return new Response('Trop de requêtes. Réessayez dans une minute.', Response::HTTP_TOO_MANY_REQUESTS);
         }
         return null;
@@ -126,6 +152,7 @@ class BurnNoteController extends AbstractController
         }
 
         if (!$this->isCsrfTokenValid('burnnote_burn', $request->request->get('_csrf_token'))) {
+            $this->logger->warning('burnnote.csrf_fail', ['action' => 'burn', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
@@ -134,6 +161,7 @@ class BurnNoteController extends AbstractController
         if ($note && !$note->isExpired()) {
             $note->burn();
             $em->flush();
+            $this->logger->info('burnnote.burned', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
         }
 
         return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
@@ -153,6 +181,7 @@ class BurnNoteController extends AbstractController
         }
 
         if (!$this->isCsrfTokenValid('burnnote_reveal', $request->request->get('_csrf_token'))) {
+            $this->logger->warning('burnnote.csrf_fail', ['action' => 'reveal', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
@@ -160,10 +189,17 @@ class BurnNoteController extends AbstractController
         $note = $repository->consumeView($token);
 
         if (!$note) {
+            $this->logger->warning('burnnote.reveal_expired', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
         }
 
         $secret = $encryption->decrypt($note->getPayload(), $note->getNonce());
+
+        $this->logger->info('burnnote.revealed', [
+            'ip'             => $request->getClientIp(),
+            'token'          => substr($token, 0, 8),
+            'viewsRemaining' => $note->getViewsRemaining(),
+        ]);
 
         if ($note->getViewsRemaining() <= 0) {
             $note->burn();
