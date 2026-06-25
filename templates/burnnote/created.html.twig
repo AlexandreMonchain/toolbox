@@ -29,9 +29,8 @@
                     class="form-control"
                     value="{{ url }}"
                     readonly
-                    onclick="this.select()"
                 >
-                <button class="btn btn-secondary" onclick="copyUrl()" id="copy-btn" title="Copier">
+                <button class="btn btn-secondary" id="copy-btn" title="Copier">
                     <i class="fas fa-copy" aria-hidden="true"></i>
                 </button>
             </div>
@@ -52,20 +51,23 @@
 {% endblock %}
 
 {% block script %}
-<script>
-function copyUrl() {
+<script nonce="{{ csp_nonce() }}">
     const input = document.getElementById('burn-url');
     const btn   = document.getElementById('copy-btn');
-    navigator.clipboard.writeText(input.value).then(() => {
-        btn.innerHTML = '<i class="fas fa-check"></i>';
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-secondary');
-        setTimeout(() => {
-            btn.innerHTML = '<i class="fas fa-copy"></i>';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-secondary');
-        }, 2000);
+
+    input.addEventListener('click', () => input.select());
+
+    btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(input.value).then(() => {
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-secondary');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-copy"></i>';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            }, 2000);
+        });
     });
-}
 </script>
 {% endblock %}

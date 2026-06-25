@@ -37,10 +37,10 @@
                 <!-- Générateur de passphrase -->
                 <div class="mb-4">
                     <div class="d-flex align-items-center gap-2 mb-2 justify-content-end">
-                        <button type="button" class="btn btn-secondary btn-sm" id="gen-btn" onclick="generatePassphrase()">
+                        <button type="button" class="btn btn-secondary btn-sm" id="gen-btn">
                             <i class="fas fa-dice" aria-hidden="true"></i> Générer une passphrase
                         </button>
-                        <button type="button" class="btn btn-secondary btn-sm" id="gen-config-toggle" onclick="toggleGenConfig()">
+                        <button type="button" class="btn btn-secondary btn-sm" id="gen-config-toggle">
                             <i class="fas fa-sliders-h" aria-hidden="true"></i>
                         </button>
                     </div>
@@ -122,7 +122,7 @@
                                         <input class="form-check-input" type="checkbox" id="gen-accents">
                                         <label class="form-check-label" for="gen-accents">Caractères accentués</label>
                                     </div>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" onclick="resetGenConfig()">
+                                    <button type="button" id="gen-reset" class="btn btn-outline-secondary btn-sm ms-auto">
                                         <i class="fas fa-undo" aria-hidden="true"></i> Réinitialiser
                                     </button>
                                 </div>
@@ -177,7 +177,7 @@
 {% endblock %}
 
 {% block script %}
-<script>
+<script nonce="{{ csp_nonce() }}">
     // Cookie helpers
     const COOKIE_KEY = 'toolbox_gen_config';
     const GEN_DEFAULTS = {
@@ -224,6 +224,11 @@
         applyGenConfig(GEN_DEFAULTS);
         saveGenConfig();
     }
+
+    // Wiring des boutons (CSP : plus d'attributs onclick inline)
+    document.getElementById('gen-btn').addEventListener('click', generatePassphrase);
+    document.getElementById('gen-config-toggle').addEventListener('click', toggleGenConfig);
+    document.getElementById('gen-reset').addEventListener('click', resetGenConfig);
 
     // Persist on change
     document.querySelectorAll('#gen-config select, #gen-config input[type=checkbox]').forEach(el => {

@@ -18,7 +18,17 @@ use Symfony\Component\DependencyInjection\Attribute\Target;
 #[Route('/burn', name: 'burnnote_')]
 class BurnNoteController extends AbstractController
 {
-    public function __construct(private readonly LoggerInterface $logger) {}
+    // $securityLogger est lié au canal Monolog "security" (déclaré dans monolog.yaml),
+    // qui écrit toujours en prod — contrairement au handler "main" en fingers_crossed.
+    public function __construct(private readonly LoggerInterface $securityLogger) {}
+
+    /** Empêche toute mise en cache (navigateur, proxy) d'une réponse contenant un secret. */
+    private function noStore(Response $response): Response
+    {
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->headers->set('Pragma', 'no-cache');
+        return $response;
+    }
 
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(): Response
@@ -37,7 +47,7 @@ class BurnNoteController extends AbstractController
 
         $request->getSession()->remove('burnnote_created');
 
-        return $this->render('burnnote/created.html.twig', $data);
+        return $this->noStore($this->render('burnnote/created.html.twig', $data));
     }
 
     #[Route('', name: 'create', methods: ['POST'])]
@@ -52,7 +62,7 @@ class BurnNoteController extends AbstractController
         }
 
         if (!$this->isCsrfTokenValid('burnnote_create', $request->request->get('_csrf_token'))) {
-            $this->logger->warning('burnnote.csrf_fail', ['action' => 'create', 'ip' => $request->getClientIp()]);
+            $this->securityLogger->warning('burnnote.csrf_fail', ['action' => 'create', 'ip' => $request->getClientIp()]);
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
@@ -91,7 +101,7 @@ class BurnNoteController extends AbstractController
 
         $url = $this->generateUrl('burnnote_show', ['token' => $note->getToken()], \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL);
 
-        $this->logger->info('burnnote.created', [
+        $this->securityLogger->info('burnnote.created', [
             'ip'       => $request->getClientIp(),
             'ttl_h'    => $ttl,
             'maxViews' => $unlimited ? 'unlimited' : $maxViews,
@@ -110,7 +120,7 @@ class BurnNoteController extends AbstractController
     {
         $limiter = $factory->create($request->getClientIp());
         if (!$limiter->consume(1)->isAccepted()) {
-            $this->logger->warning('burnnote.rate_limit', [
+            $this->securityLogger->warning('burnnote.rate_limit', [
                 'ip'   => $request->getClientIp(),
                 'path' => $request->getPathInfo(),
             ]);
@@ -132,11 +142,11 @@ class BurnNoteController extends AbstractController
             return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
         }
 
-        return $this->render('burnnote/preview.html.twig', [
+        return $this->noStore($this->render('burnnote/preview.html.twig', [
             'token'    => $token,
             'maxViews' => $note->getViewsRemaining(),
             'expiresAt' => $note->getExpiresAt(),
-        ]);
+        ]));
     }
 
     #[Route('/{token}/burn', name: 'burn', methods: ['POST'])]
@@ -152,7 +162,7 @@ class BurnNoteController extends AbstractController
         }
 
         if (!$this->isCsrfTokenValid('burnnote_burn', $request->request->get('_csrf_token'))) {
-            $this->logger->warning('burnnote.csrf_fail', ['action' => 'burn', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            $this->securityLogger->warning('burnnote.csrf_fail', ['action' => 'burn', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
@@ -161,7 +171,7 @@ class BurnNoteController extends AbstractController
         if ($note && !$note->isExpired()) {
             $note->burn();
             $em->flush();
-            $this->logger->info('burnnote.burned', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            $this->securityLogger->info('burnnote.burned', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
         }
 
         return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
@@ -181,7 +191,7 @@ class BurnNoteController extends AbstractController
         }
 
         if (!$this->isCsrfTokenValid('burnnote_reveal', $request->request->get('_csrf_token'))) {
-            $this->logger->warning('burnnote.csrf_fail', ['action' => 'reveal', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            $this->securityLogger->warning('burnnote.csrf_fail', ['action' => 'reveal', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
@@ -189,13 +199,13 @@ class BurnNoteController extends AbstractController
         $note = $repository->consumeView($token);
 
         if (!$note) {
-            $this->logger->warning('burnnote.reveal_expired', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            $this->securityLogger->warning('burnnote.reveal_expired', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
         }
 
         $secret = $encryption->decrypt($note->getPayload(), $note->getNonce());
 
-        $this->logger->info('burnnote.revealed', [
+        $this->securityLogger->info('burnnote.revealed', [
             'ip'             => $request->getClientIp(),
             'token'          => substr($token, 0, 8),
             'viewsRemaining' => $note->getViewsRemaining(),
@@ -206,10 +216,10 @@ class BurnNoteController extends AbstractController
             $em->flush();
         }
 
-        return $this->render('burnnote/show.html.twig', [
+        return $this->noStore($this->render('burnnote/show.html.twig', [
             'secret'         => $secret,
             'viewsRemaining' => $note->getViewsRemaining(),
             'token'          => $token,
-        ]);
+        ]));
     }
 }

@@ -27,7 +27,7 @@
                     readonly
                     spellcheck="false"
                 >{{ secret }}</textarea>
-                <button class="btn btn-secondary" onclick="copySecret()" id="copy-btn" title="Copier">
+                <button class="btn btn-secondary" id="copy-btn" title="Copier">
                     <i class="fas fa-copy" aria-hidden="true"></i>
                 </button>
             </div>
@@ -84,20 +84,20 @@
 {% endblock %}
 
 {% block script %}
-<script>
-function copySecret() {
-    const textarea = document.getElementById('secret-value');
-    const btn      = document.getElementById('copy-btn');
-    navigator.clipboard.writeText(textarea.value).then(() => {
-        btn.innerHTML = '<i class="fas fa-check"></i>';
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-secondary');
-        setTimeout(() => {
-            btn.innerHTML = '<i class="fas fa-copy"></i>';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-secondary');
-        }, 2000);
+<script nonce="{{ csp_nonce() }}">
+    const btn = document.getElementById('copy-btn');
+    btn.addEventListener('click', () => {
+        const textarea = document.getElementById('secret-value');
+        navigator.clipboard.writeText(textarea.value).then(() => {
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-secondary');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-copy"></i>';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            }, 2000);
+        });
     });
-}
 </script>
 {% endblock %}

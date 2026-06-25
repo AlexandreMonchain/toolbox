@@ -13,7 +13,7 @@
         <meta property="og:site_name" content="Toolbox">
         <link rel="icon" href="{{ asset('assets/favicon.svg') }}" type="image/svg+xml">
         <!-- Theme: set immediately to avoid flash of wrong theme -->
-        <script>(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
+        <script nonce="{{ csp_nonce() }}">(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
         <!-- Google Fonts: Inter -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +30,7 @@
                 <a class="nav-logo" href="{{ path('app_home') }}">
                     <img src="{{ asset('assets/favicon.svg') }}" width="26" height="26" alt="" aria-hidden="true"> Toolbox
                 </a>
-                <button class="nav-toggle" aria-label="Toggle navigation" onclick="toggleNav()">
+                <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
                     <span></span>
                     <span></span>
                     <span></span>
@@ -69,10 +69,10 @@
         </footer>
 
         <script src="{{ asset('assets/bootstrap.min.js') }}" defer></script>
-        <script>
-            function toggleNav() {
+        <script nonce="{{ csp_nonce() }}">
+            document.getElementById('nav-toggle').addEventListener('click', function() {
                 document.getElementById('navMenu').classList.toggle('active');
-            }
+            });
             document.addEventListener('click', function(e) {
                 const nav = document.querySelector('.navbar-modern');
                 if (!nav.contains(e.target)) {
