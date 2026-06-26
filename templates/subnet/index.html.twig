@@ -118,8 +118,7 @@ function maskToPrefix(mask) {
 function validateIp(ip) {
     const parts = ip.split('.');
     return parts.length === 4 && parts.every(p => {
-        const n = parseInt(p, 10);
-        return p !== '' && !isNaN(n) && n >= 0 && n <= 255;
+        return /^\d+$/.test(p) && parseInt(p, 10) >= 0 && parseInt(p, 10) <= 255;
     });
 }
 

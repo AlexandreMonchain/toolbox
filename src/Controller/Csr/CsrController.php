@@ -56,6 +56,12 @@ class CsrController extends AbstractController
         if (strlen($c) !== 2 || !ctype_alpha($c)) {
             return $this->json(['error' => 'Le pays doit être un code ISO à 2 lettres (ex : FR).'], 422);
         }
+        if (strlen($cn) > 64 || strlen($o) > 64 || strlen($ou) > 64 || strlen($l) > 128 || strlen($st) > 128 || strlen($email) > 254) {
+            return $this->json(['error' => 'Un ou plusieurs champs dépassent la longueur maximale autorisée.'], 422);
+        }
+        if (count($sans) > 20) {
+            return $this->json(['error' => 'Maximum 20 noms DNS alternatifs autorisés.'], 422);
+        }
 
         $hostnameRe = '/^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/';
         if (!preg_match($hostnameRe, $cn)) {
@@ -107,7 +113,9 @@ class CsrController extends AbstractController
         if ($configFile === false) {
             return $this->json(['error' => 'Erreur système.'], 500);
         }
-        file_put_contents($configFile, $configContent);
+        if (file_put_contents($configFile, $configContent) === false) {
+            return $this->json(['error' => 'Erreur système (écriture configuration).'], 500);
+        }
 
         try {
             $privateKey = openssl_pkey_new([
