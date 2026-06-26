@@ -95,10 +95,10 @@
                     <div class="col-md-4">
                         <label class="form-label">Nombre de mots</label>
                         <select id="gen-nb-mots" class="form-select form-select-sm">
-                            <option value="2">2 mots</option>
+                            <option value="2" selected>2 mots</option>
                             <option value="3">3 mots</option>
                             <option value="4">4 mots</option>
-                            <option value="5" selected>5 mots</option>
+                            <option value="5">5 mots</option>
                             <option value="6">6 mots</option>
                             <option value="7">7 mots</option>
                         </select>
@@ -118,9 +118,9 @@
                         <label class="form-label">Longueur min.</label>
                         <select id="gen-longueur" class="form-select form-select-sm">
                             <option value="8">8 car.</option>
-                            <option value="12">12 car.</option>
+                            <option value="12" selected>12 car.</option>
                             <option value="16">16 car.</option>
-                            <option value="20" selected>20 car.</option>
+                            <option value="20">20 car.</option>
                             <option value="30">30 car.</option>
                         </select>
                     </div>
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ── Générateur de passphrase (passphrase.fr) ─────────────────────────────────
 const COOKIE_KEY   = 'toolbox_gen_config';
 const GEN_DEFAULTS = {
-    nbMots: '5', sep: 'random', longueur: '20', nb: '2',
+    nbMots: '2', sep: 'random', longueur: '12', nb: '2',
     spec: 'random', count: '4', majDebut: true, majAlea: false, accents: false
 };
 

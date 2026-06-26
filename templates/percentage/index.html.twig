@@ -1,0 +1,232 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Calculateur de % — Toolbox{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">📊</div>
+    <h1 class="hero-title">Calculateur de %</h1>
+    <p class="hero-subtitle">Variation entre deux valeurs, application d'un pourcentage, proportion — sans prise de tête.</p>
+</section>
+
+<div class="pct-grid">
+
+    {# ── Variation ────────────────────────────────────────────────── #}
+    <div class="card-modern">
+        <h2 class="card-title">
+            <i class="fas fa-arrows-up-down fa-fw" aria-hidden="true"></i>
+            Variation
+        </h2>
+        <p class="pct-desc">Quelle est la variation en % entre deux valeurs ?</p>
+        <div class="pct-formula">((B − A) / |A|) × 100</div>
+        <div class="mb-3">
+            <label class="form-label" for="var-a">Valeur initiale <span class="pct-var">A</span></label>
+            <input type="number" id="var-a" class="form-control" placeholder="100" step="any">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="var-b">Valeur finale <span class="pct-var">B</span></label>
+            <input type="number" id="var-b" class="form-control" placeholder="150" step="any">
+        </div>
+        <div id="var-result" class="pct-result" style="display:none;"></div>
+    </div>
+
+    {# ── Application ─────────────────────────────────────────────── #}
+    <div class="card-modern">
+        <h2 class="card-title">
+            <i class="fas fa-plus-minus fa-fw" aria-hidden="true"></i>
+            Application
+        </h2>
+        <p class="pct-desc">Quelle est la valeur après une augmentation ou diminution ?</p>
+        <div class="pct-formula">V × (1 ± p/100)</div>
+        <div class="mb-3">
+            <label class="form-label" for="app-val">Valeur de départ <span class="pct-var">V</span></label>
+            <input type="number" id="app-val" class="form-control" placeholder="200" step="any">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="app-pct">Pourcentage <span class="pct-var">p</span></label>
+            <div class="d-flex gap-2">
+                <input type="number" id="app-pct" class="form-control" placeholder="15" step="any" min="0">
+                <select id="app-dir" class="form-select" style="flex:0 0 auto; width:auto; min-width:120px;">
+                    <option value="up">+ Augmentation</option>
+                    <option value="down">− Diminution</option>
+                </select>
+            </div>
+        </div>
+        <div id="app-result" class="pct-result" style="display:none;"></div>
+    </div>
+
+    {# ── Proportion ──────────────────────────────────────────────── #}
+    <div class="card-modern">
+        <h2 class="card-title">
+            <i class="fas fa-chart-pie fa-fw" aria-hidden="true"></i>
+            Proportion
+        </h2>
+        <p class="pct-desc">Quel pourcentage représente A par rapport à B ?</p>
+        <div class="pct-formula">(A / B) × 100</div>
+        <div class="mb-3">
+            <label class="form-label" for="prop-a">Valeur partielle <span class="pct-var">A</span></label>
+            <input type="number" id="prop-a" class="form-control" placeholder="75" step="any">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="prop-b">Valeur totale <span class="pct-var">B</span></label>
+            <input type="number" id="prop-b" class="form-control" placeholder="200" step="any">
+        </div>
+        <div id="prop-result" class="pct-result" style="display:none;"></div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+.pct-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+}
+.pct-desc {
+    font-size: 0.825rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+}
+.pct-result {
+    padding: 1.1rem 1rem;
+    border-radius: 12px;
+    background: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    text-align: center;
+    margin-top: 0.25rem;
+}
+.pct-value {
+    font-size: clamp(0.9rem, 4vw, 1.9rem);
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.2;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+.pct-label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    margin-top: 0.4rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+.pct-increase { color: #166534; }
+.pct-decrease { color: #991B1B; }
+[data-theme="dark"] .pct-increase { color: #4ADE80; }
+[data-theme="dark"] .pct-decrease { color: #F87171; }
+.pct-error {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+.pct-formula {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.78rem;
+    background: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 3px 10px;
+    color: var(--color-text-secondary);
+    margin-bottom: 1.1rem;
+    letter-spacing: 0.02em;
+}
+.pct-var {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    font-style: italic;
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-radius: 4px;
+    padding: 0 5px;
+    margin-left: 0.2rem;
+    vertical-align: middle;
+    line-height: 1.6;
+    font-weight: 700;
+}
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+function fmt(n) {
+    if (!isFinite(n)) return '∞';
+    const abs = Math.abs(n);
+    // Notation scientifique pour les grands/petits nombres pour éviter le débordement visuel
+    if (abs >= 1e12 || (abs > 0 && abs < 1e-6)) {
+        return n.toExponential(4).replace('.', ',').replace('e+', ' × 10^').replace('e-', ' × 10^−').replace('e', ' × 10^');
+    }
+    return (Math.round(n * 10000) / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 4 });
+}
+
+// ── Variation ──────────────────────────────────────────────────────────────
+function calcVar() {
+    const a   = parseFloat(document.getElementById('var-a').value);
+    const b   = parseFloat(document.getElementById('var-b').value);
+    const box = document.getElementById('var-result');
+    if (isNaN(a) || isNaN(b)) { box.style.display = 'none'; return; }
+    if (a === 0) {
+        box.innerHTML = '<span class="pct-error">La valeur initiale ne peut pas être zéro.</span>';
+        box.style.display = '';
+        return;
+    }
+    const pct  = ((b - a) / Math.abs(a)) * 100;
+    const sign = pct > 0 ? '+' : '';
+    const cls  = pct >= 0 ? 'pct-increase' : 'pct-decrease';
+    const type = pct >= 0 ? 'Augmentation' : 'Diminution';
+    box.innerHTML = `
+        <div class="pct-value ${cls}">${sign}${fmt(pct)}&thinsp;%</div>
+        <div class="pct-label">${type} de ${fmt(a)} à ${fmt(b)}</div>`;
+    box.style.display = '';
+}
+document.getElementById('var-a').addEventListener('input', calcVar);
+document.getElementById('var-b').addEventListener('input', calcVar);
+
+// ── Application ────────────────────────────────────────────────────────────
+function calcApp() {
+    const val = parseFloat(document.getElementById('app-val').value);
+    const pct = parseFloat(document.getElementById('app-pct').value);
+    const dir = document.getElementById('app-dir').value;
+    const box = document.getElementById('app-result');
+    if (isNaN(val) || isNaN(pct)) { box.style.display = 'none'; return; }
+    const factor = dir === 'up' ? 1 + pct / 100 : 1 - pct / 100;
+    const result = val * factor;
+    const diff   = result - val;
+    const sign   = diff >= 0 ? '+' : '';
+    const cls    = diff >= 0 ? 'pct-increase' : 'pct-decrease';
+    box.innerHTML = `
+        <div class="pct-value">${fmt(result)}</div>
+        <div class="pct-label ${cls}">${sign}${fmt(diff)} (${sign}${fmt(dir === 'up' ? pct : -pct)}&thinsp;%)</div>`;
+    box.style.display = '';
+}
+document.getElementById('app-val').addEventListener('input', calcApp);
+document.getElementById('app-pct').addEventListener('input', calcApp);
+document.getElementById('app-dir').addEventListener('change', calcApp);
+
+// ── Proportion ─────────────────────────────────────────────────────────────
+function calcProp() {
+    const a   = parseFloat(document.getElementById('prop-a').value);
+    const b   = parseFloat(document.getElementById('prop-b').value);
+    const box = document.getElementById('prop-result');
+    if (isNaN(a) || isNaN(b)) { box.style.display = 'none'; return; }
+    if (b === 0) {
+        box.innerHTML = '<span class="pct-error">La valeur totale ne peut pas être zéro.</span>';
+        box.style.display = '';
+        return;
+    }
+    const pct = (a / b) * 100;
+    box.innerHTML = `
+        <div class="pct-value">${fmt(pct)}&thinsp;%</div>
+        <div class="pct-label">${fmt(a)} représente ${fmt(pct)}&thinsp;% de ${fmt(b)}</div>`;
+    box.style.display = '';
+}
+document.getElementById('prop-a').addEventListener('input', calcProp);
+document.getElementById('prop-b').addEventListener('input', calcProp);
+</script>
+{% endblock %}
