@@ -8,3 +8,7 @@ framework:
             policy: sliding_window
             limit: 10
             interval: '1 minute'
+        csr_generate:
+            policy: sliding_window
+            limit: 20
+            interval: '1 minute'
