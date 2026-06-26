@@ -1,0 +1,132 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}DropText — Note{% endblock %}
+
+{% block body %}
+<div class="container" style="max-width:960px; padding-top:1.5rem;">
+
+    {# ── Métadonnées ──────────────────────────────────────────────────────────── #}
+    <div class="d-flex flex-wrap gap-3 align-items-center mb-3" style="font-size:0.85rem; color:var(--color-text-secondary);">
+        <span>
+            <i class="fas fa-clock fa-fw" aria-hidden="true"></i>
+            Expire le {{ note.expiresAt|date('d/m/Y à H:i') }}
+        </span>
+        {% if note.maxReads is not null %}
+            {% if note.readsRemaining > 0 %}
+            <span style="color:var(--color-warning);">
+                <i class="fas fa-eye fa-fw" aria-hidden="true"></i>
+                {{ note.readsRemaining }} lecture{{ note.readsRemaining > 1 ? 's' : '' }} restante{{ note.readsRemaining > 1 ? 's' : '' }}
+            </span>
+            {% else %}
+            <span style="color:var(--color-danger);">
+                <i class="fas fa-fire fa-fw" aria-hidden="true"></i>
+                Note détruite après cette lecture
+            </span>
+            {% endif %}
+        {% endif %}
+        <div class="ms-auto d-flex gap-2">
+            <button type="button" id="copy-content-btn" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+            <button type="button" id="download-btn" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-download" aria-hidden="true"></i> Télécharger
+            </button>
+        </div>
+    </div>
+
+    {# ── Code ─────────────────────────────────────────────────────────────────── #}
+    <div class="card-modern p-0 mb-3" style="overflow:hidden;">
+        <pre style="margin:0; max-height:75vh; overflow:auto;"><code id="code-block" class="language-{{ note.language }}" style="font-size:0.83rem; line-height:1.55;">{{ content }}</code></pre>
+    </div>
+
+    <div id="copy-feedback" style="font-size:0.85rem; color:var(--color-success); display:none; margin-bottom:0.75rem;">
+        <i class="fas fa-check" aria-hidden="true"></i> Contenu copié !
+    </div>
+
+    {# ── Actions bas de page ──────────────────────────────────────────────────── #}
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <a href="{{ path('droptext_index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-plus" aria-hidden="true"></i> Créer une note
+        </a>
+
+        {# Burn manuel #}
+        <div class="ms-auto">
+            <button type="button" id="burn-btn" class="btn btn-sm btn-outline-danger">
+                <i class="fas fa-fire" aria-hidden="true"></i> Brûler la note
+            </button>
+            <div id="burn-confirm" style="display:none;" class="d-flex align-items-center gap-2">
+                <span style="font-size:0.85rem; color:var(--color-danger);">
+                    Action irréversible —
+                </span>
+                <form method="post" action="{{ path('droptext_burn', {token: note.token}) }}" style="display:inline;">
+                    <input type="hidden" name="_csrf_token"
+                        value="{{ csrf_token('droptext_burn_' ~ note.token) }}">
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        <i class="fas fa-fire" aria-hidden="true"></i> Confirmer
+                    </button>
+                </form>
+                <button type="button" id="burn-cancel" class="btn btn-sm btn-outline-secondary">
+                    Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block script %}
+{# Thème CSS highlight.js — servi localement (CSP : self) #}
+<link id="hljs-css" rel="stylesheet" href="{{ asset('assets/hljs/github.min.css') }}">
+
+{# highlight.js — servi localement, pas de nonce requis (script-src 'self') #}
+<script src="{{ asset('assets/hljs/highlight.min.js') }}"></script>
+<script src="{{ asset('assets/hljs/powershell.min.js') }}"></script>
+
+<script nonce="{{ csp_nonce() }}">
+// ── Thème réactif clair / sombre ─────────────────────────────────────────────
+const cssLink = document.getElementById('hljs-css');
+function applyHljsTheme() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    cssLink.href = dark
+        ? '{{ asset('assets/hljs/github-dark-dimmed.min.css') }}'
+        : '{{ asset('assets/hljs/github.min.css') }}';
+}
+applyHljsTheme();
+new MutationObserver(applyHljsTheme)
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ── Coloration syntaxique ─────────────────────────────────────────────────────
+hljs.highlightElement(document.getElementById('code-block'));
+
+// ── Copier ───────────────────────────────────────────────────────────────────
+document.getElementById('copy-content-btn').addEventListener('click', function () {
+    navigator.clipboard.writeText(document.getElementById('code-block').textContent).then(function () {
+        const fb = document.getElementById('copy-feedback');
+        fb.style.display = 'block';
+        setTimeout(function () { fb.style.display = 'none'; }, 3000);
+    });
+});
+
+// ── Télécharger ──────────────────────────────────────────────────────────────
+document.getElementById('download-btn').addEventListener('click', function () {
+    const blob = new Blob([document.getElementById('code-block').textContent], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'droptext.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+// ── Burn manuel ───────────────────────────────────────────────────────────────
+document.getElementById('burn-btn').addEventListener('click', function () {
+    this.style.display = 'none';
+    document.getElementById('burn-confirm').style.display = 'flex';
+});
+document.getElementById('burn-cancel').addEventListener('click', function () {
+    document.getElementById('burn-confirm').style.display = 'none';
+    document.getElementById('burn-btn').style.display = 'inline-block';
+});
+</script>
+{% endblock %}

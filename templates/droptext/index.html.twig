@@ -1,0 +1,395 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}DropText — Partage de texte sécurisé{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">📋</div>
+    <h1 class="hero-title">DropText</h1>
+    <p class="hero-subtitle">Partagez un texte ou un script de façon sécurisée. Chiffrement AES-256-GCM. TTL et lecture limitée configurables.</p>
+</section>
+
+<div class="container" style="max-width:820px;">
+
+    {% if error is defined %}
+    <div class="alert alert-danger mb-4">{{ error }}</div>
+    {% endif %}
+
+    <form id="drop-form" method="post" action="{{ path('droptext_create') }}" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('droptext_create') }}">
+
+        {# ── Contenu ──────────────────────────────────────────────────────────── #}
+        <div class="card-modern mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 style="font-size:1rem; font-weight:600; margin:0;">
+                    <i class="fas fa-file-alt" aria-hidden="true"></i> Contenu
+                </h2>
+                <div style="font-size:0.8rem; color:var(--color-text-secondary);">
+                    <span id="char-count">0</span> / 524 288 caractères
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="dt-language">Langage</label>
+                <select id="dt-language" name="language" class="form-select" style="max-width:220px;">
+                    {% for key, label in languages %}
+                        <option value="{{ key }}"{{ key == 'plaintext' ? ' selected' : '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <textarea id="dt-content" name="content" class="form-control font-monospace"
+                rows="18" placeholder="Collez votre texte, script ou configuration ici…"
+                autocomplete="off" spellcheck="false"
+                style="resize:vertical; font-size:0.83rem; line-height:1.5;"
+                required></textarea>
+        </div>
+
+        {# ── Options ──────────────────────────────────────────────────────────── #}
+        <div class="card-modern mb-4">
+            <h2 style="font-size:1rem; font-weight:600; margin-bottom:1.25rem;">
+                <i class="fas fa-sliders-h" aria-hidden="true"></i> Options
+            </h2>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label" for="dt-ttl">Expiration</label>
+                    <select id="dt-ttl" name="ttl" class="form-select">
+                        {% for secs, label in ttl_options %}
+                            <option value="{{ secs }}"{{ secs == 86400 ? ' selected' : '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="dt-max-reads">Lectures max</label>
+                    <select id="dt-max-reads" name="max_reads" class="form-select">
+                        {% for val, label in max_reads_options %}
+                            <option value="{{ val }}"{{ val == 0 ? ' selected' : '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            {# ── Passphrase + générateur ──────────────────────────────────────── #}
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label mb-0" for="dt-passphrase">
+                    Passphrase <span style="font-weight:400; color:var(--color-text-secondary);">(facultatif)</span>
+                </label>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" id="gen-btn">
+                        <i class="fas fa-dice" aria-hidden="true"></i> Générer
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="gen-config-toggle"
+                        title="Paramètres du générateur" aria-label="Paramètres du générateur">
+                        <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <input type="text" id="dt-passphrase" name="passphrase"
+                class="form-control font-monospace" placeholder="Laisser vide = accès libre"
+                maxlength="128" autocomplete="off" spellcheck="false">
+
+            {# Config générateur #}
+            <div id="gen-config" style="display:none;" class="p-3 mt-3"
+                style="background:var(--color-bg-light); border-radius:12px; border:1px solid var(--color-border);">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Nombre de mots</label>
+                        <select id="gen-nb-mots" class="form-select form-select-sm">
+                            <option value="2">2 mots</option>
+                            <option value="3">3 mots</option>
+                            <option value="4">4 mots</option>
+                            <option value="5" selected>5 mots</option>
+                            <option value="6">6 mots</option>
+                            <option value="7">7 mots</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Séparateur</label>
+                        <select id="gen-sep" class="form-select form-select-sm">
+                            <option value="random" selected>Aléatoire</option>
+                            <option value="-">Tiret -</option>
+                            <option value="_">Underscore _</option>
+                            <option value=" ">Espace</option>
+                            <option value="*">Étoile *</option>
+                            <option value="+">Plus +</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Longueur min.</label>
+                        <select id="gen-longueur" class="form-select form-select-sm">
+                            <option value="8">8 car.</option>
+                            <option value="12">12 car.</option>
+                            <option value="16">16 car.</option>
+                            <option value="20" selected>20 car.</option>
+                            <option value="30">30 car.</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Chiffres à la fin</label>
+                        <select id="gen-nb" class="form-select form-select-sm">
+                            <option value="0">Aucun</option>
+                            <option value="1">1 chiffre</option>
+                            <option value="2" selected>2 chiffres</option>
+                            <option value="3">3 chiffres</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Caractère spécial</label>
+                        <select id="gen-spec" class="form-select form-select-sm">
+                            <option value="random" selected>Aléatoire</option>
+                            <option value="none">Aucun</option>
+                            <option value="$">$</option>
+                            <option value="!">!</option>
+                            <option value="#">#</option>
+                            <option value="?">?</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Résultats</label>
+                        <select id="gen-count" class="form-select form-select-sm">
+                            <option value="4" selected>4</option>
+                            <option value="6">6</option>
+                            <option value="8">8</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex gap-3 flex-wrap align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="gen-maj-debut" checked>
+                                <label class="form-check-label" for="gen-maj-debut">Majuscule début de mot</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="gen-maj-alea">
+                                <label class="form-check-label" for="gen-maj-alea">Majuscule aléatoire</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="gen-accents">
+                                <label class="form-check-label" for="gen-accents">Caractères accentués</label>
+                            </div>
+                            <button type="button" id="gen-reset" class="btn btn-outline-secondary btn-sm ms-auto">
+                                <i class="fas fa-undo" aria-hidden="true"></i> Réinitialiser
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gen-results" class="mt-2" style="display:none;"></div>
+        </div>
+
+        <div class="d-grid mb-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-share-alt" aria-hidden="true"></i> Créer le lien
+            </button>
+        </div>
+
+    </form>
+</div>
+
+{# ── Modale de confirmation de passphrase ─────────────────────────────────── #}
+<div class="modal fade" id="passphrase-modal" tabindex="-1"
+    aria-labelledby="passphrase-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="passphrase-modal-label">
+                    <i class="fas fa-triangle-exclamation text-warning" aria-hidden="true"></i>
+                    Notez votre passphrase
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.9rem;" class="mb-3">
+                    Sans cette passphrase, le destinataire ne pourra pas accéder à la note.
+                    Si vous l'oubliez, <strong>l'accès sera définitivement perdu</strong> — la note ne peut pas être récupérée.
+                </p>
+                <div class="input-group mb-2">
+                    <input type="text" id="modal-passphrase-display"
+                        class="form-control font-monospace fw-bold" readonly>
+                    <button type="button" class="btn btn-outline-secondary" id="modal-copy-btn">
+                        <i class="fas fa-copy" aria-hidden="true"></i> Copier
+                    </button>
+                </div>
+                <div id="modal-copy-feedback"
+                    style="font-size:0.85rem; color:var(--color-success); display:none;">
+                    <i class="fas fa-check" aria-hidden="true"></i> Passphrase copiée dans le presse-papier !
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i> Annuler — corriger
+                </button>
+                <button type="button" class="btn btn-primary" id="modal-confirm-btn">
+                    <i class="fas fa-share-alt" aria-hidden="true"></i> J'ai noté la passphrase, envoyer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script nonce="{{ csp_nonce() }}">
+// ── Compteur de caractères ───────────────────────────────────────────────────
+document.getElementById('dt-content').addEventListener('input', function () {
+    document.getElementById('char-count').textContent = this.value.length.toLocaleString('fr-FR');
+});
+
+// ── Modale de confirmation passphrase ────────────────────────────────────────
+// DOMContentLoaded requis : bootstrap.min.js est chargé en defer dans le layout
+// et n'est donc pas encore disponible au moment où ce script s'exécute.
+document.addEventListener('DOMContentLoaded', function () {
+    const form    = document.getElementById('drop-form');
+    const modal   = new bootstrap.Modal(document.getElementById('passphrase-modal'));
+    let confirmed = false;
+
+    form.addEventListener('submit', function (e) {
+        const pp = document.getElementById('dt-passphrase').value.trim();
+        if (pp && !confirmed) {
+            e.preventDefault();
+            document.getElementById('modal-passphrase-display').value = pp;
+            document.getElementById('modal-copy-feedback').style.display = 'none';
+            modal.show();
+        }
+    });
+
+    document.getElementById('modal-copy-btn').addEventListener('click', function () {
+        const pp = document.getElementById('modal-passphrase-display').value;
+        navigator.clipboard.writeText(pp).then(function () {
+            document.getElementById('modal-copy-feedback').style.display = 'block';
+        });
+    });
+
+    document.getElementById('modal-confirm-btn').addEventListener('click', function () {
+        confirmed = true;
+        modal.hide();
+        form.submit();
+    });
+
+    document.getElementById('passphrase-modal').addEventListener('hidden.bs.modal', function () {
+        confirmed = false;
+    });
+});
+
+// ── Générateur de passphrase (passphrase.fr) ─────────────────────────────────
+const COOKIE_KEY   = 'toolbox_gen_config';
+const GEN_DEFAULTS = {
+    nbMots: '5', sep: 'random', longueur: '20', nb: '2',
+    spec: 'random', count: '4', majDebut: true, majAlea: false, accents: false
+};
+
+function saveGenConfig() {
+    const cfg = {
+        nbMots:   document.getElementById('gen-nb-mots').value,
+        sep:      document.getElementById('gen-sep').value,
+        longueur: document.getElementById('gen-longueur').value,
+        nb:       document.getElementById('gen-nb').value,
+        spec:     document.getElementById('gen-spec').value,
+        count:    document.getElementById('gen-count').value,
+        majDebut: document.getElementById('gen-maj-debut').checked,
+        majAlea:  document.getElementById('gen-maj-alea').checked,
+        accents:  document.getElementById('gen-accents').checked,
+    };
+    document.cookie = COOKIE_KEY + '=' + encodeURIComponent(JSON.stringify(cfg)) + '; max-age=' + (365*24*3600) + '; path=/; SameSite=Lax';
+}
+
+function loadGenConfig() {
+    const match = document.cookie.split('; ').find(function (r) { return r.startsWith(COOKIE_KEY + '='); });
+    if (!match) return null;
+    try { return JSON.parse(decodeURIComponent(match.split('=').slice(1).join('='))); } catch(e) {}
+    return null;
+}
+
+function applyGenConfig(cfg) {
+    document.getElementById('gen-nb-mots').value     = cfg.nbMots;
+    document.getElementById('gen-sep').value         = cfg.sep;
+    document.getElementById('gen-longueur').value    = cfg.longueur;
+    document.getElementById('gen-nb').value          = cfg.nb;
+    document.getElementById('gen-spec').value        = cfg.spec;
+    document.getElementById('gen-count').value       = cfg.count;
+    document.getElementById('gen-maj-debut').checked = cfg.majDebut;
+    document.getElementById('gen-maj-alea').checked  = cfg.majAlea;
+    document.getElementById('gen-accents').checked   = cfg.accents;
+}
+
+document.getElementById('gen-btn').addEventListener('click', generatePassphrase);
+document.getElementById('gen-config-toggle').addEventListener('click', function () {
+    const cfg = document.getElementById('gen-config');
+    cfg.style.display = cfg.style.display === 'none' ? 'block' : 'none';
+});
+document.getElementById('gen-reset').addEventListener('click', function () {
+    applyGenConfig(GEN_DEFAULTS);
+    saveGenConfig();
+});
+document.querySelectorAll('#gen-config select, #gen-config input[type=checkbox]').forEach(function (el) {
+    el.addEventListener('change', saveGenConfig);
+});
+
+const savedCfg = loadGenConfig();
+if (savedCfg) applyGenConfig(savedCfg);
+
+async function generatePassphrase() {
+    const btn = document.getElementById('gen-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Génération…';
+
+    const params = new URLSearchParams({
+        nb_mots:              document.getElementById('gen-nb-mots').value,
+        separateur:           document.getElementById('gen-sep').value,
+        longueur_minimale:    document.getElementById('gen-longueur').value,
+        longueur_nombre:      document.getElementById('gen-nb').value,
+        caractere_special:    document.getElementById('gen-spec').value,
+        count:                document.getElementById('gen-count').value,
+        majuscule_debut:      document.getElementById('gen-maj-debut').checked ? '1' : '0',
+        majuscule_aleatoire:  document.getElementById('gen-maj-alea').checked ? '1' : '0',
+        caracteres_accentues: document.getElementById('gen-accents').checked ? '1' : '0',
+    });
+
+    try {
+        const res  = await fetch('https://passphrase.fr/api/passwords?' + params);
+        const data = await res.json();
+        const list = document.getElementById('gen-results');
+        list.style.display = 'block';
+
+        const grid = document.createElement('div');
+        grid.className = 'gen-results-grid';
+
+        data.passwords.forEach(function (p) {
+            const item = document.createElement('div');
+            item.className = 'gen-result-item';
+            item.title = 'Cliquer pour utiliser';
+            item.addEventListener('click', function () { usePassphrase(item); });
+
+            const span = document.createElement('span');
+            span.className = 'gen-result-text';
+            span.textContent = p.password;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-arrow-right gen-result-arrow';
+            icon.setAttribute('aria-hidden', 'true');
+
+            item.appendChild(span);
+            item.appendChild(icon);
+            grid.appendChild(item);
+        });
+
+        list.innerHTML = '';
+        list.appendChild(grid);
+    } catch(e) {
+        const list = document.getElementById('gen-results');
+        list.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Impossible de contacter passphrase.fr</p>';
+        list.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-dice" aria-hidden="true"></i> Générer';
+}
+
+function usePassphrase(el) {
+    document.getElementById('dt-passphrase').value = el.querySelector('.gen-result-text').textContent;
+    document.getElementById('gen-results').style.display = 'none';
+}
+</script>
+{% endblock %}
