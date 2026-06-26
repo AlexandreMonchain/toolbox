@@ -130,7 +130,7 @@ class BurnNoteController extends AbstractController
     }
 
     #[Route('/{token}', name: 'show', methods: ['GET'])]
-    public function show(string $token, Request $request, BurnNoteRepository $repository, #[Target('burnNoteLimiter')] RateLimiterFactory $burnnoteRateLimiter): Response
+    public function show(string $token, Request $request, BurnNoteRepository $repository, EntityManagerInterface $em, #[Target('burnNoteLimiter')] RateLimiterFactory $burnnoteRateLimiter): Response
     {
         if ($limited = $this->checkRateLimit($request, $burnnoteRateLimiter)) {
             return $limited;
@@ -139,6 +139,10 @@ class BurnNoteController extends AbstractController
         $note = $repository->findOneBy(['token' => $token]);
 
         if (!$note || !$note->isAccessible()) {
+            if ($note) {
+                $em->remove($note);
+                $em->flush();
+            }
             return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
         }
 
@@ -169,7 +173,7 @@ class BurnNoteController extends AbstractController
         $note = $repository->findOneBy(['token' => $token]);
 
         if ($note && !$note->isExpired()) {
-            $note->burn();
+            $em->remove($note);
             $em->flush();
             $this->securityLogger->info('burnnote.burned', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
         }
@@ -199,6 +203,11 @@ class BurnNoteController extends AbstractController
         $note = $repository->consumeView($token);
 
         if (!$note) {
+            $expired = $repository->findOneBy(['token' => $token]);
+            if ($expired) {
+                $em->remove($expired);
+                $em->flush();
+            }
             $this->securityLogger->warning('burnnote.reveal_expired', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
         }
@@ -212,7 +221,7 @@ class BurnNoteController extends AbstractController
         ]);
 
         if ($note->getViewsRemaining() <= 0) {
-            $note->burn();
+            $em->remove($note);
             $em->flush();
         }
 

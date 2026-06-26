@@ -1,0 +1,534 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Calculateur de sous-réseaux IP — Toolbox{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">🌐</div>
+        <h1 class="hero-title">Sous-réseaux IP</h1>
+        <p class="hero-subtitle">Calculateur IPv4 complet — plages, masques, découpe de réseaux, visualisation binaire.</p>
+    </section>
+
+    <div class="container" style="max-width: 960px;">
+
+        {# ── Input ────────────────────────────────────────────────────────────── #}
+        <div class="card-modern mb-4">
+            <div class="d-flex gap-2">
+                <input type="text" id="subnet-input" class="form-control form-control-lg font-monospace"
+                    placeholder="192.168.1.0/24  ·  10.0.0.1 255.0.0.0  ·  172.16.0.0"
+                    autocomplete="off" autocorrect="off" spellcheck="false">
+                <button id="calc-btn" class="btn btn-primary btn-lg px-4" style="white-space:nowrap;">
+                    <i class="fas fa-calculator" aria-hidden="true"></i> Calculer
+                </button>
+            </div>
+            <div id="input-error" class="text-danger mt-2" style="display:none; font-size:0.875rem;"></div>
+            <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
+                <span style="font-size:0.8rem; color:var(--color-text-secondary);">Exemples :</span>
+                <button class="btn btn-sm btn-outline-secondary font-monospace quick-example" data-value="192.168.1.0/24">192.168.1.0/24</button>
+                <button class="btn btn-sm btn-outline-secondary font-monospace quick-example" data-value="10.0.0.0/8">10.0.0.0/8</button>
+                <button class="btn btn-sm btn-outline-secondary font-monospace quick-example" data-value="172.16.0.0/12">172.16.0.0/12</button>
+            </div>
+        </div>
+
+        {# ── Résultats ─────────────────────────────────────────────────────────── #}
+        <div id="results" style="display:none;">
+
+            <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                <h2 id="result-title" class="mb-0 font-monospace" style="font-size:1.5rem; font-weight:700;"></h2>
+                <span id="result-badge" class="badge fs-6"></span>
+                <span id="result-class" class="text-muted" style="font-size:0.9rem;"></span>
+            </div>
+
+            {# Table valeurs #}
+            <div class="card-modern mb-4">
+                <table class="table table-borderless mb-0" id="result-table" style="--bs-table-bg: transparent; --bs-table-hover-bg: transparent;">
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            {# Visualisation binaire #}
+            <div class="card-modern mb-4">
+                <h3 style="font-size:1rem; font-weight:600; margin-bottom:1.25rem;">
+                    <i class="fas fa-table-cells" aria-hidden="true"></i> Représentation binaire
+                </h3>
+                <div id="binary-display" style="overflow-x:auto;"></div>
+            </div>
+
+            {# Vérificateur d'appartenance #}
+            <div class="card-modern mb-4">
+                <h3 style="font-size:1rem; font-weight:600; margin-bottom:1rem;">
+                    <i class="fas fa-search" aria-hidden="true"></i> Cette IP est-elle dans ce réseau ?
+                </h3>
+                <div class="d-flex gap-2 align-items-center">
+                    <input type="text" id="check-ip" class="form-control font-monospace"
+                        placeholder="192.168.1.50" autocomplete="off" spellcheck="false"
+                        style="max-width:220px;">
+                    <button id="check-btn" class="btn btn-secondary">Vérifier</button>
+                </div>
+                <div id="check-result" class="mt-2" style="font-size:0.9rem;"></div>
+            </div>
+
+            {# Découpe en sous-réseaux #}
+            <div class="card-modern mb-4">
+                <h3 style="font-size:1rem; font-weight:600; margin-bottom:1.25rem;">
+                    <i class="fas fa-cut" aria-hidden="true"></i> Découper en sous-réseaux
+                </h3>
+
+                <div id="split-impossible" style="display:none;">
+                    <p class="text-muted" style="font-size:0.9rem;">Impossible de découper un /32 — hôte unique.</p>
+                </div>
+
+                <div id="split-control" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-baseline mb-2">
+                        <span class="font-monospace fw-bold" style="font-size:1.4rem;">/<span id="split-prefix-display">26</span></span>
+                        <span id="split-summary" style="color:var(--color-text-secondary); font-size:0.875rem;"></span>
+                    </div>
+                    <input type="range" id="split-slider" class="form-range" min="1" max="32" value="26">
+                    <div class="d-flex justify-content-between mt-1" style="font-size:0.75rem; color:var(--color-text-secondary);">
+                        <span>/<span id="split-min-label"></span></span>
+                        <span>/32</span>
+                    </div>
+                    <div id="split-results" class="mt-3"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+{% endblock %}
+
+{% block script %}
+<script nonce="{{ csp_nonce() }}">
+// ── IP Math ────────────────────────────────────────────────────────────────────
+function ipToInt(ip) {
+    const p = ip.split('.').map(Number);
+    return ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0;
+}
+function intToIp(n) {
+    return [(n >>> 24), (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.');
+}
+function prefixToMask(p) {
+    return p === 0 ? 0 : (0xFFFFFFFF << (32 - p)) >>> 0;
+}
+function maskToPrefix(mask) {
+    const bin = ipToInt(mask).toString(2).padStart(32, '0');
+    const pos = bin.indexOf('0');
+    return pos === -1 ? 32 : pos;
+}
+function validateIp(ip) {
+    const parts = ip.split('.');
+    return parts.length === 4 && parts.every(p => {
+        const n = parseInt(p, 10);
+        return p !== '' && !isNaN(n) && n >= 0 && n <= 255;
+    });
+}
+
+// ── Parsing ────────────────────────────────────────────────────────────────────
+function parseInput(raw) {
+    const s = raw.trim().replace(/\s+/, ' ');
+
+    // 192.168.1.0/24
+    let m = s.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})$/);
+    if (m && parseInt(m[2]) <= 32) return { ip: m[1], prefix: parseInt(m[2]) };
+
+    // 192.168.1.0 255.255.255.0
+    m = s.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (m) return { ip: m[1], prefix: maskToPrefix(m[2]) };
+
+    // 192.168.1.0 (classe auto-détectée)
+    m = s.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (m) {
+        const first = parseInt(m[1].split('.')[0]);
+        const prefix = first < 128 ? 8 : first < 192 ? 16 : 24;
+        return { ip: m[1], prefix };
+    }
+
+    return null;
+}
+
+// ── Classification IANA ────────────────────────────────────────────────────────
+function classify(n) {
+    if (n === 0)                                                           return { label: 'Ce réseau (0.0.0.0/8)',       color: 'secondary' };
+    if ((n & 0xFF000000) >>> 0 === 0x7F000000)                            return { label: 'Loopback · RFC 5735',          color: 'secondary' };
+    if ((n & 0xFF000000) >>> 0 === 0x0A000000)                            return { label: 'Privé · RFC 1918',             color: 'success'   };
+    if ((n & 0xFFF00000) >>> 0 === 0xAC100000)                            return { label: 'Privé · RFC 1918',             color: 'success'   };
+    if ((n & 0xFFFF0000) >>> 0 === 0xC0A80000)                            return { label: 'Privé · RFC 1918',             color: 'success'   };
+    if ((n & 0xFFFF0000) >>> 0 === 0xA9FE0000)                            return { label: 'APIPA · Lien local',           color: 'warning'   };
+    if ((n & 0xFFFF0000) >>> 0 === 0x64400000)                            return { label: 'CGN partagé · RFC 6598',       color: 'warning'   };
+    if ((n & 0xF0000000) >>> 0 === 0xE0000000)                            return { label: 'Multicast · RFC 3171',         color: 'info'      };
+    if ((n & 0xFF000000) >>> 0 === 0xF0000000)                            return { label: 'Réservé · RFC 1112',           color: 'secondary' };
+    if ((n & 0xFFFFFF00) >>> 0 === 0xC0000000)                            return { label: 'IETF Protocol · RFC 6890',    color: 'secondary' };
+    if ((n & 0xFFFFFF00) >>> 0 === 0xC0000200)                            return { label: 'Documentation · RFC 5737',    color: 'secondary' };
+    if ((n & 0xFFFF0000) >>> 0 === 0xC6336400)                            return { label: 'Documentation · RFC 5737',    color: 'secondary' };
+    if ((n & 0xFFFF0000) >>> 0 === 0xCB007100)                            return { label: 'Documentation · RFC 5737',    color: 'secondary' };
+    if ((n & 0xFFFFFFFF) >>> 0 === 0xFFFFFFFF)                            return { label: 'Broadcast limité',             color: 'secondary' };
+    return { label: 'Public · Internet', color: 'primary' };
+}
+
+function getIpClass(n) {
+    const f = n >>> 24;
+    if (f < 128) return 'Classe A';
+    if (f < 192) return 'Classe B';
+    if (f < 224) return 'Classe C';
+    if (f < 240) return 'Classe D (Multicast)';
+    return 'Classe E (Réservé)';
+}
+
+// ── Calcul principal ───────────────────────────────────────────────────────────
+let currentCalc = null;
+
+function calculate(raw) {
+    const parsed = parseInput(raw);
+    if (!parsed || !validateIp(parsed.ip)) return null;
+    if (parsed.prefix < 0 || parsed.prefix > 32) return null;
+
+    const { prefix } = parsed;
+    const ipInt      = ipToInt(parsed.ip);
+    const mask       = prefixToMask(prefix);
+    const networkInt = (ipInt & mask) >>> 0;
+    const broadcastInt = prefix === 32 ? networkInt : (networkInt | (~mask >>> 0)) >>> 0;
+    const wildcardInt = (~mask) >>> 0;
+    const total = Math.pow(2, 32 - prefix);
+
+    let firstHostInt, lastHostInt, usable;
+    if (prefix === 32) {
+        firstHostInt = lastHostInt = networkInt;
+        usable = 1;
+    } else if (prefix === 31) {
+        firstHostInt = networkInt;
+        lastHostInt  = broadcastInt;
+        usable = 2;
+    } else {
+        firstHostInt = networkInt + 1;
+        lastHostInt  = broadcastInt - 1;
+        usable = total - 2;
+    }
+
+    return {
+        inputIp: parsed.ip, inputInt: ipInt, prefix,
+        networkIp: intToIp(networkInt), networkInt,
+        broadcastIp: intToIp(broadcastInt), broadcastInt,
+        firstHostIp: intToIp(firstHostInt),
+        lastHostIp: intToIp(lastHostInt),
+        maskIp: intToIp(mask), maskInt: mask,
+        wildcardIp: intToIp(wildcardInt),
+        usable, total,
+        classification: classify(networkInt),
+        ipClass: getIpClass(networkInt),
+        rfc3021: prefix === 31,
+    };
+}
+
+// ── Rendu ──────────────────────────────────────────────────────────────────────
+function fmt(n) { return n.toLocaleString('fr-FR'); }
+
+function makeRow(label, value, note) {
+    const tr = document.createElement('tr');
+
+    const tdLabel = document.createElement('td');
+    tdLabel.style.cssText = 'color:var(--color-text-secondary); white-space:nowrap; width:45%; vertical-align:middle;';
+    tdLabel.textContent = label;
+
+    const tdValue = document.createElement('td');
+    tdValue.style.cssText = 'font-family:monospace; font-weight:600; vertical-align:middle; cursor:pointer; user-select:all; color:var(--color-text-primary);';
+    tdValue.title = 'Cliquer pour copier';
+
+    const valueSpan = document.createElement('span');
+    valueSpan.textContent = value;
+    tdValue.appendChild(valueSpan);
+
+    if (note) {
+        const s = document.createElement('span');
+        s.style.cssText = 'color:var(--color-text-secondary); font-weight:400; font-size:0.85rem; margin-left:0.5rem;';
+        s.textContent = note;
+        tdValue.appendChild(s);
+    }
+
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-copy';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'margin-left:0.6rem; font-size:0.7rem; color:var(--color-text-secondary); opacity:0.4;';
+    tdValue.appendChild(icon);
+
+    tdValue.addEventListener('click', function () {
+        navigator.clipboard.writeText(value).then(() => {
+            valueSpan.textContent = 'Copié !';
+            tdValue.style.color = 'var(--bs-success, #198754)';
+            icon.className = 'fas fa-check';
+            setTimeout(() => {
+                valueSpan.textContent = value;
+                tdValue.style.color = '';
+                icon.className = 'fas fa-copy';
+            }, 1200);
+        });
+    });
+
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdValue);
+    return tr;
+}
+
+function makeSep(label) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 2;
+    td.style.cssText = 'padding-top:1.1rem; padding-bottom:0.2rem; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.07em; color:var(--color-text-secondary); font-weight:700; border-top: 1px solid var(--color-border);';
+    td.textContent = label;
+    tr.appendChild(td);
+    return tr;
+}
+
+function renderBinary(calc) {
+    const PRIMARY = 'var(--color-primary, #6366F1)';
+    const MUTED   = 'var(--color-text-secondary)';
+    const BORDER  = 'var(--color-border)';
+
+    function bitsHtml(integer, prefix) {
+        const bits = integer.toString(2).padStart(32, '0');
+        let html = '';
+        for (let i = 0; i < 32; i++) {
+            if (i > 0 && i % 8 === 0) {
+                html += `<span style="color:${BORDER}; margin:0 3px;">.</span>`;
+            }
+            const isNet = i < prefix;
+            html += `<span style="color:${isNet ? PRIMARY : MUTED}; font-weight:${isNet ? '700' : '400'};">${bits[i]}</span>`;
+        }
+        return html;
+    }
+
+    const { prefix } = calc;
+    const netPct = (prefix / 32 * 100).toFixed(1);
+    const hostPct = ((32 - prefix) / 32 * 100).toFixed(1);
+
+    const container = document.getElementById('binary-display');
+    container.innerHTML = '';
+
+    function addRow(labelText, integer, ipText) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; gap:1.5rem; margin-bottom:0.4rem; white-space:nowrap;';
+
+        const lbl = document.createElement('span');
+        lbl.style.cssText = `color:${MUTED}; font-size:0.78rem; min-width:90px; flex-shrink:0;`;
+        lbl.textContent = labelText;
+
+        const bits = document.createElement('span');
+        bits.style.cssText = 'letter-spacing:0.12em; font-family:monospace; font-size:0.9rem;';
+        bits.innerHTML = bitsHtml(integer, prefix);
+
+        const ip = document.createElement('span');
+        ip.style.cssText = `color:${MUTED}; font-family:monospace; font-size:0.85rem; flex-shrink:0;`;
+        ip.textContent = ipText;
+
+        row.appendChild(lbl);
+        row.appendChild(bits);
+        row.appendChild(ip);
+        container.appendChild(row);
+    }
+
+    addRow('IP saisie', calc.inputInt, calc.inputIp);
+    addRow('Réseau', calc.networkInt, calc.networkIp);
+    addRow('Masque', calc.maskInt, calc.maskIp);
+
+    // Barre de répartition
+    if (prefix > 0 && prefix < 32) {
+        const bar = document.createElement('div');
+        bar.style.cssText = 'margin-top:0.75rem; display:flex; border-radius:6px; overflow:hidden; height:10px;';
+
+        const netBar = document.createElement('div');
+        netBar.style.cssText = `flex:0 0 ${netPct}%; background:${PRIMARY}; opacity:0.85;`;
+
+        const hostBar = document.createElement('div');
+        hostBar.style.cssText = `flex:1; background:${MUTED}; opacity:0.3;`;
+
+        bar.appendChild(netBar);
+        bar.appendChild(hostBar);
+        container.appendChild(bar);
+
+        const legend = document.createElement('div');
+        legend.style.cssText = 'display:flex; justify-content:space-between; margin-top:0.3rem; font-size:0.75rem;';
+        legend.innerHTML = `<span style="color:${PRIMARY};">◀ ${prefix} bits réseau</span><span style="color:${MUTED};">${32 - prefix} bits hôte ▶</span>`;
+        container.appendChild(legend);
+    }
+}
+
+function renderResults(calc) {
+    document.getElementById('result-title').textContent = `${calc.networkIp}/${calc.prefix}`;
+
+    const badge = document.getElementById('result-badge');
+    badge.textContent = calc.classification.label;
+    badge.className = `badge bg-${calc.classification.color} fs-6`;
+
+    document.getElementById('result-class').textContent = calc.ipClass;
+
+    const tbody = document.querySelector('#result-table tbody');
+    tbody.innerHTML = '';
+    tbody.appendChild(makeSep('Adressage'));
+    tbody.appendChild(makeRow('Adresse réseau',       calc.networkIp,   `/${calc.prefix}`));
+    tbody.appendChild(makeRow('Broadcast',            calc.broadcastIp));
+    tbody.appendChild(makeRow('Premier hôte utilisable', calc.firstHostIp));
+    tbody.appendChild(makeRow('Dernier hôte utilisable', calc.lastHostIp));
+    tbody.appendChild(makeSep('Masques'));
+    tbody.appendChild(makeRow('Masque de sous-réseau', calc.maskIp,     `/${calc.prefix}`));
+    tbody.appendChild(makeRow('Wildcard mask (ACL Cisco)', calc.wildcardIp));
+    tbody.appendChild(makeRow('Notation CIDR',        `/${calc.prefix}`));
+    tbody.appendChild(makeSep('Capacité'));
+    tbody.appendChild(makeRow(
+        'Hôtes utilisables',
+        fmt(calc.usable) + (calc.rfc3021 ? ' (RFC 3021 point-à-point)' : ''),
+        ''
+    ));
+    tbody.appendChild(makeRow('Adresses totales', fmt(calc.total)));
+
+    renderBinary(calc);
+
+    document.getElementById('check-result').innerHTML = '';
+    document.getElementById('check-ip').value = '';
+
+    if (calc.prefix === 32) {
+        document.getElementById('split-impossible').style.display = 'block';
+        document.getElementById('split-control').style.display = 'none';
+    } else {
+        document.getElementById('split-impossible').style.display = 'none';
+        document.getElementById('split-control').style.display = 'block';
+        const slider  = document.getElementById('split-slider');
+        const minVal  = calc.prefix + 1;
+        const defVal  = Math.min(calc.prefix + 2, 32);
+        slider.min    = minVal;
+        slider.max    = 32;
+        slider.value  = defVal;
+        document.getElementById('split-min-label').textContent = minVal;
+        document.getElementById('split-results').innerHTML = '';
+        updateSplitDisplay(calc, defVal);
+        renderSplit(calc, defVal);
+    }
+
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Vérificateur d'appartenance ────────────────────────────────────────────────
+function checkMembership() {
+    if (!currentCalc) return;
+    const raw = document.getElementById('check-ip').value.trim();
+    const el  = document.getElementById('check-result');
+    if (!raw || !validateIp(raw)) {
+        el.innerHTML = '<span class="text-danger">Adresse IP invalide.</span>';
+        return;
+    }
+    const ipInt = ipToInt(raw);
+    const inNet = (ipInt & currentCalc.maskInt) >>> 0 === currentCalc.networkInt;
+    if (inNet) {
+        el.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> <strong>${raw}</strong> appartient à ${currentCalc.networkIp}/${currentCalc.prefix}</span>`;
+    } else {
+        el.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle"></i> <strong>${raw}</strong> n'appartient pas à ${currentCalc.networkIp}/${currentCalc.prefix}</span>`;
+    }
+}
+
+// ── Découpe en sous-réseaux ────────────────────────────────────────────────────
+function updateSplitDisplay(calc, newPrefix) {
+    document.getElementById('split-prefix-display').textContent = newPrefix;
+    const count = Math.pow(2, newPrefix - calc.prefix);
+    const usableEach = newPrefix === 32 ? 1 : newPrefix === 31 ? 2 : Math.pow(2, 32 - newPrefix) - 2;
+    document.getElementById('split-summary').textContent =
+        `${fmt(count)} sous-réseau${count > 1 ? 'x' : ''} · ${fmt(usableEach)} hôte${usableEach > 1 ? 's' : ''} chacun`;
+}
+
+function renderSplit(calc, newPrefix) {
+    const container = document.getElementById('split-results');
+
+    if (newPrefix <= calc.prefix) {
+        container.innerHTML = '<p class="text-danger" style="font-size:0.875rem;">Le préfixe de découpe doit être supérieur au préfixe actuel.</p>';
+        return;
+    }
+    if (newPrefix > 32) {
+        container.innerHTML = '<p class="text-danger" style="font-size:0.875rem;">Le préfixe maximum est /32.</p>';
+        return;
+    }
+
+    const count       = Math.pow(2, newPrefix - calc.prefix);
+    const subnetSize  = Math.pow(2, 32 - newPrefix);
+    const usableEach  = newPrefix >= 31 ? (newPrefix === 32 ? 1 : 2) : subnetSize - 2;
+    const MAX_DISPLAY = 64;
+
+    let html = '';
+
+    if (count > MAX_DISPLAY) {
+        html += `<div class="mb-3 p-3" style="background:var(--color-bg-light); border:1px solid var(--color-border); border-radius:8px; font-size:0.85rem; color:var(--color-text-secondary);">
+            Affichage limité aux ${MAX_DISPLAY} premiers sous-réseaux sur ${fmt(count)}.
+        </div>`;
+    }
+
+    html += `<div style="overflow-x:auto;"><table class="table table-sm mb-0" style="font-size:0.82rem; font-family:monospace; --bs-table-bg: transparent; --bs-table-hover-bg: transparent; --bs-table-accent-bg: transparent; --bs-table-color: var(--color-text-primary); --bs-table-border-color: var(--color-border); color: var(--color-text-primary);">
+        <thead><tr style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">
+            <th style="font-weight:600; color:var(--color-text-secondary); background:transparent;">#</th>
+            <th style="font-weight:600; color:var(--color-text-secondary); background:transparent;">Réseau</th>
+            <th style="font-weight:600; color:var(--color-text-secondary); background:transparent;">Premier hôte</th>
+            <th style="font-weight:600; color:var(--color-text-secondary); background:transparent;">Dernier hôte</th>
+            <th style="font-weight:600; color:var(--color-text-secondary); background:transparent;">Broadcast</th>
+        </tr></thead><tbody>`;
+
+    const displayCount = Math.min(count, MAX_DISPLAY);
+    for (let i = 0; i < displayCount; i++) {
+        const netInt   = (calc.networkInt + i * subnetSize) >>> 0;
+        const bcInt    = (netInt + subnetSize - 1) >>> 0;
+        const firstInt = newPrefix >= 31 ? netInt     : netInt + 1;
+        const lastInt  = newPrefix >= 31 ? bcInt      : bcInt - 1;
+        html += `<tr>
+            <td style="color:var(--color-text-secondary);">${i + 1}</td>
+            <td style="color:var(--color-text-primary);"><strong>${intToIp(netInt)}/${newPrefix}</strong></td>
+            <td style="color:var(--color-text-primary);">${intToIp(firstInt)}</td>
+            <td style="color:var(--color-text-primary);">${intToIp(lastInt)}</td>
+            <td style="color:var(--color-text-primary);">${intToIp(bcInt)}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// ── Wiring ─────────────────────────────────────────────────────────────────────
+function doCalculate() {
+    const raw   = document.getElementById('subnet-input').value;
+    const errEl = document.getElementById('input-error');
+
+    if (!raw.trim()) {
+        errEl.textContent = 'Entrez une adresse IP ou un réseau CIDR.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    const calc = calculate(raw);
+    if (!calc) {
+        errEl.textContent = 'Format non reconnu. Exemples : 192.168.1.0/24 · 10.0.0.1 255.0.0.0 · 172.16.0.0';
+        errEl.style.display = 'block';
+        document.getElementById('results').style.display = 'none';
+        return;
+    }
+
+    errEl.style.display = 'none';
+    currentCalc = calc;
+    renderResults(calc);
+}
+
+document.getElementById('calc-btn').addEventListener('click', doCalculate);
+document.getElementById('subnet-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') doCalculate();
+});
+document.querySelectorAll('.quick-example').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        document.getElementById('subnet-input').value = this.dataset.value;
+        doCalculate();
+    });
+});
+document.getElementById('split-slider').addEventListener('input', function () {
+    if (!currentCalc) return;
+    const newPrefix = parseInt(this.value);
+    updateSplitDisplay(currentCalc, newPrefix);
+    renderSplit(currentCalc, newPrefix);
+});
+document.getElementById('check-btn').addEventListener('click', checkMembership);
+document.getElementById('check-ip').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') checkMembership();
+});
+</script>
+{% endblock %}
