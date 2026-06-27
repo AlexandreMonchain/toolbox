@@ -38,11 +38,13 @@ class CsrController extends AbstractController
             return $this->json(['error' => 'Données invalides.'], 400);
         }
 
+        $stripCtrl = static fn(string $s): string => str_replace(["\n", "\r", "\0"], '', $s);
+
         $cn    = trim($data['cn']    ?? '');
-        $o     = trim($data['o']     ?? '');
-        $ou    = trim($data['ou']    ?? '');
-        $l     = trim($data['l']     ?? '');
-        $st    = trim($data['st']    ?? '');
+        $o     = $stripCtrl(trim($data['o']  ?? ''));
+        $ou    = $stripCtrl(trim($data['ou'] ?? ''));
+        $l     = $stripCtrl(trim($data['l']  ?? ''));
+        $st    = $stripCtrl(trim($data['st'] ?? ''));
         $c     = strtoupper(trim($data['c'] ?? ''));
         $email = trim($data['email'] ?? '');
         $sans  = array_values(array_filter(
@@ -59,8 +61,8 @@ class CsrController extends AbstractController
         if (strlen($cn) > 64 || strlen($o) > 64 || strlen($ou) > 64 || strlen($l) > 128 || strlen($st) > 128 || strlen($email) > 254) {
             return $this->json(['error' => 'Un ou plusieurs champs dépassent la longueur maximale autorisée.'], 422);
         }
-        if (count($sans) > 20) {
-            return $this->json(['error' => 'Maximum 20 noms DNS alternatifs autorisés.'], 422);
+        if (count($sans) > 100) {
+            return $this->json(['error' => 'Maximum 100 noms DNS alternatifs autorisés.'], 422);
         }
 
         $hostnameRe = '/^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/';

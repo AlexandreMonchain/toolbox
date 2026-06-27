@@ -416,11 +416,15 @@ function checkMembership() {
     }
     const ipInt = ipToInt(raw);
     const inNet = (ipInt & currentCalc.maskInt) >>> 0 === currentCalc.networkInt;
-    if (inNet) {
-        el.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> <strong>${raw}</strong> appartient à ${currentCalc.networkIp}/${currentCalc.prefix}</span>`;
-    } else {
-        el.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle"></i> <strong>${raw}</strong> n'appartient pas à ${currentCalc.networkIp}/${currentCalc.prefix}</span>`;
-    }
+    const span = document.createElement('span');
+    span.className = inNet ? 'text-success' : 'text-danger';
+    const icon = document.createElement('i');
+    icon.className = inNet ? 'fas fa-check-circle' : 'fas fa-times-circle';
+    icon.setAttribute('aria-hidden', 'true');
+    const strong = document.createElement('strong');
+    strong.textContent = raw;
+    span.append(icon, ' ', strong, ` ${inNet ? 'appartient à' : "n'appartient pas à"} ${currentCalc.networkIp}/${currentCalc.prefix}`);
+    el.replaceChildren(span);
 }
 
 // ── Découpe en sous-réseaux ────────────────────────────────────────────────────

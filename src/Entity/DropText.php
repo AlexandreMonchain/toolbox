@@ -56,7 +56,7 @@ class DropText
     #[ORM\Column(length: 32)]
     private string $nonce;
 
-    #[ORM\Column(length: 72, nullable: true)]
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $passphraseHash = null;
 
     #[ORM\Column(length: 32)]

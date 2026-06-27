@@ -77,7 +77,7 @@ class DropTextController extends AbstractController
         $note->setMaxReads($maxReads > 0 ? $maxReads : null);
 
         if ($passphrase !== '') {
-            $note->setPassphraseHash(password_hash($passphrase, PASSWORD_BCRYPT));
+            $note->setPassphraseHash(password_hash($passphrase, PASSWORD_ARGON2ID));
         }
 
         $this->repository->save($note);
@@ -99,6 +99,28 @@ class DropTextController extends AbstractController
             return $this->render('droptext/unlock.html.twig', ['token' => $token]);
         }
 
+        // Pas de consommation sur un GET : les aperçus de lien (Slack, Teams,
+        // Outlook Safe Links…) ne doivent pas brûler la note. La lecture réelle
+        // passe par reveal() en POST.
+        return $this->render('droptext/reveal.html.twig', ['note' => $note, 'token' => $token]);
+    }
+
+    #[Route('/{token}/reveal', name: 'reveal', methods: ['POST'], requirements: ['token' => '[0-9a-f]{64}'])]
+    public function reveal(string $token, Request $request): Response
+    {
+        if (!$this->isCsrfTokenValid('droptext_reveal_' . $token, $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Token CSRF invalide.');
+        }
+
+        $note = $this->repository->findActiveByToken($token);
+        if ($note === null) {
+            return $this->render('droptext/gone.html.twig', [], new Response(status: 404));
+        }
+        // Une note protégée passe toujours par unlock(), jamais par reveal direct.
+        if ($note->hasPassphrase()) {
+            return $this->render('droptext/unlock.html.twig', ['token' => $token]);
+        }
+
         return $this->doShow($token);
     }
 
@@ -112,7 +134,9 @@ class DropTextController extends AbstractController
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
-        $limit = $limiter->create($request->getClientIp())->consume();
+        // Limiteur indexé sur le token : borne les tentatives de passphrase
+        // PAR NOTE (pas seulement par IP, contournable derrière Cloudflare/NAT).
+        $limit = $limiter->create('dt_unlock_' . $token)->consume();
         if (!$limit->isAccepted()) {
             return $this->render('droptext/unlock.html.twig', [
                 'token' => $token,
@@ -129,7 +153,7 @@ class DropTextController extends AbstractController
 
         if (!$note->hasPassphrase() || !password_verify($passphrase, $note->getPassphraseHash())) {
             $this->securityLogger->warning('DropText: passphrase incorrecte', [
-                'token' => $token,
+                'token' => substr($token, 0, 8),
                 'ip'    => $request->getClientIp(),
             ]);
             return $this->render('droptext/unlock.html.twig', [
@@ -142,10 +166,18 @@ class DropTextController extends AbstractController
     }
 
     #[Route('/{token}/burn', name: 'burn', methods: ['POST'], requirements: ['token' => '[0-9a-f]{64}'])]
-    public function burn(string $token, Request $request): Response
-    {
+    public function burn(
+        string $token,
+        Request $request,
+        #[Target('droptextBurnLimiter')] RateLimiterFactory $limiter,
+    ): Response {
         if (!$this->isCsrfTokenValid('droptext_burn_' . $token, $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Token CSRF invalide.');
+        }
+
+        $limit = $limiter->create($request->getClientIp())->consume();
+        if (!$limit->isAccepted()) {
+            return new Response('Trop de requêtes. Réessayez dans une minute.', 429);
         }
 
         $burned = $this->repository->burnByToken($token);

@@ -180,9 +180,13 @@ function calcVar() {
     const sign = pct > 0 ? '+' : '';
     const cls  = pct >= 0 ? 'pct-increase' : 'pct-decrease';
     const type = pct >= 0 ? 'Augmentation' : 'Diminution';
-    box.innerHTML = `
-        <div class="pct-value ${cls}">${sign}${fmt(pct)}&thinsp;%</div>
-        <div class="pct-label">${type} de ${fmt(a)} à ${fmt(b)}</div>`;
+    const vDiv1 = document.createElement('div');
+    vDiv1.className = `pct-value ${cls}`;
+    vDiv1.textContent = `${sign}${fmt(pct)} %`;
+    const lDiv1 = document.createElement('div');
+    lDiv1.className = 'pct-label';
+    lDiv1.textContent = `${type} de ${fmt(a)} à ${fmt(b)}`;
+    box.replaceChildren(vDiv1, lDiv1);
     box.style.display = '';
 }
 document.getElementById('var-a').addEventListener('input', calcVar);
@@ -200,9 +204,13 @@ function calcApp() {
     const diff   = result - val;
     const sign   = diff >= 0 ? '+' : '';
     const cls    = diff >= 0 ? 'pct-increase' : 'pct-decrease';
-    box.innerHTML = `
-        <div class="pct-value">${fmt(result)}</div>
-        <div class="pct-label ${cls}">${sign}${fmt(diff)} (${sign}${fmt(dir === 'up' ? pct : -pct)}&thinsp;%)</div>`;
+    const vDiv2 = document.createElement('div');
+    vDiv2.className = 'pct-value';
+    vDiv2.textContent = fmt(result);
+    const lDiv2 = document.createElement('div');
+    lDiv2.className = `pct-label ${cls}`;
+    lDiv2.textContent = `${sign}${fmt(diff)} (${sign}${fmt(dir === 'up' ? pct : -pct)} %)`;
+    box.replaceChildren(vDiv2, lDiv2);
     box.style.display = '';
 }
 document.getElementById('app-val').addEventListener('input', calcApp);
@@ -221,9 +229,13 @@ function calcProp() {
         return;
     }
     const pct = (a / b) * 100;
-    box.innerHTML = `
-        <div class="pct-value">${fmt(pct)}&thinsp;%</div>
-        <div class="pct-label">${fmt(a)} représente ${fmt(pct)}&thinsp;% de ${fmt(b)}</div>`;
+    const vDiv3 = document.createElement('div');
+    vDiv3.className = 'pct-value';
+    vDiv3.textContent = `${fmt(pct)} %`;
+    const lDiv3 = document.createElement('div');
+    lDiv3.className = 'pct-label';
+    lDiv3.textContent = `${fmt(a)} représente ${fmt(pct)} % de ${fmt(b)}`;
+    box.replaceChildren(vDiv3, lDiv3);
     box.style.display = '';
 }
 document.getElementById('prop-a').addEventListener('input', calcProp);

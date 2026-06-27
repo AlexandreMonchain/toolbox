@@ -295,8 +295,9 @@ tr.row-eq .td-code { color: var(--color-text-secondary); opacity: 0.55; }
 </style>
 
 <script nonce="{{ csp_nonce() }}">
-const MAX_LINES = 3000;
-const CTX       = 3;     // lignes de contexte
+const MAX_LINES  = 3000;
+const MAX_INLINE = 2000;  // longueur max d'une ligne pour le diff mot-à-mot (anti-DoS)
+const CTX        = 3;     // lignes de contexte
 let debounceT   = null;
 
 // ── LCS diff (lignes) ─────────────────────────────────────────────────────
@@ -320,6 +321,14 @@ function lcs(a, b) {
 
 // ── Diff inline (token level) ─────────────────────────────────────────────
 function diffInline(a, b) {
+    // Garde-fou anti-DoS : le LCS mot-à-mot est O(n*m). Sur une ligne très longue
+    // (fichier minifié, blob base64, longue ligne de log) la tokenisation produit
+    // des dizaines de milliers de tokens → allocation de plusieurs Go et freeze de
+    // l'onglet. Au-delà du seuil, on marque la ligne entière comme modifiée sans
+    // coloration mot-à-mot.
+    if (a.length > MAX_INLINE || b.length > MAX_INLINE) {
+        return [{t:'-', l:a}, {t:'+', l:b}];
+    }
     const tokA = a.match(/\w+|\W/g) || [''];
     const tokB = b.match(/\w+|\W/g) || [''];
     return lcs(tokA, tokB);
