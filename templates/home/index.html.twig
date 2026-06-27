@@ -101,5 +101,50 @@
             <span class="tool-card-badge badge-available">Disponible</span>
         </a>
 
+        <a href="{{ path('converter_index') }}" class="tool-card">
+            <div class="tool-card-icon teal">
+                <i class="fas fa-right-left" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Convertisseur bits/octets</p>
+            <p class="tool-card-desc">Convertissez bits, octets, Ko/Mo/Go/To (SI) et Kio/Mio/Gio/Tio (IEC). Copie en un clic.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('secret_index') }}" class="tool-card">
+            <div class="tool-card-icon red">
+                <i class="fas fa-shield-halved" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Générateur de secrets</p>
+            <p class="tool-card-desc">Mots de passe, tokens hex, UUID v4, clés base64url. 100 % local, <code>crypto.getRandomValues</code>.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('cron_index') }}" class="tool-card">
+            <div class="tool-card-icon gray">
+                <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Éditeur de cron</p>
+            <p class="tool-card-desc">Composez vos expressions cron avec un builder visuel, traduction en français et prochaines exécutions.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('incident_index') }}" class="tool-card">
+            <div class="tool-card-icon orange">
+                <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Minuteur d'incident</p>
+            <p class="tool-card-desc">Chronométrez vos incidents, consignez les événements avec horodatage et exportez la timeline.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('cmdgen_index') }}" class="tool-card">
+            <div class="tool-card-icon amber">
+                <i class="fas fa-terminal" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Générateur de commandes</p>
+            <p class="tool-card-desc">Générez des commandes openssl, ssh, curl, tar, rsync, systemctl, find à partir de formulaires guidés.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
     </div>
 {% endblock %}

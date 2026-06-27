@@ -1,0 +1,307 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Générateur de secrets — Toolbox{% endblock %}
+{% block og_title %}Générateur de secrets — Toolbox{% endblock %}
+{% block og_description %}Générez des mots de passe, tokens hex, UUID v4 et clés base64 sécurisés. Génération locale via crypto.getRandomValues, rien n'est envoyé.{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">🔐</div>
+    <h1 class="hero-title">Générateur de secrets</h1>
+    <p class="hero-subtitle">Mots de passe, tokens, UUID, clés API — 100 % local, <code>crypto.getRandomValues</code>, rien n'est envoyé.</p>
+</section>
+
+<div class="sg-grid">
+
+    {# ── Mot de passe ─────────────────────────────────────────────────────── #}
+    <div class="card-modern">
+        <h2 class="card-title">
+            <i class="fas fa-lock fa-fw" aria-hidden="true"></i>
+            Mot de passe
+        </h2>
+
+        <div class="mb-3">
+            <label class="form-label" for="pw-len">Longueur : <strong id="pw-len-val">24</strong> caractères</label>
+            <input type="range" id="pw-len" class="form-range" min="8" max="128" value="24" step="1">
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mb-3" style="font-size:0.875rem;">
+            <label class="d-flex align-items-center gap-1">
+                <input type="checkbox" id="pw-lower" checked> minuscules
+            </label>
+            <label class="d-flex align-items-center gap-1">
+                <input type="checkbox" id="pw-upper" checked> MAJUSCULES
+            </label>
+            <label class="d-flex align-items-center gap-1">
+                <input type="checkbox" id="pw-digits" checked> chiffres
+            </label>
+            <label class="d-flex align-items-center gap-1">
+                <input type="checkbox" id="pw-symbols"> symboles
+            </label>
+            <label class="d-flex align-items-center gap-1">
+                <input type="checkbox" id="pw-noambig" checked> exclure ambigus (0, O, 1, l, I)
+            </label>
+        </div>
+
+        <div class="sg-result-box">
+            <code id="pw-result" class="sg-result-code" aria-live="polite" aria-label="Mot de passe généré"></code>
+            <div class="sg-strength" id="pw-strength"></div>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="pw-regen">
+                <i class="fas fa-arrows-rotate" aria-hidden="true"></i> Régénérer
+            </button>
+            <button class="btn btn-sm btn-primary" id="pw-copy">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+        </div>
+    </div>
+
+    {# ── Token hexadécimal ─────────────────────────────────────────────────── #}
+    <div class="card-modern">
+        <h2 class="card-title">
+            <i class="fas fa-fingerprint fa-fw" aria-hidden="true"></i>
+            Token hexadécimal
+        </h2>
+        <p style="font-size:0.875rem; color:var(--color-text-secondary); margin-bottom:1rem;">
+            Idéal pour APP_SECRET, clés d'API, tokens JWT, APP_ENCRYPTION_KEY…
+        </p>
+
+        <div class="mb-3">
+            <label class="form-label" for="hex-bits">Taille</label>
+            <select id="hex-bits" class="form-select">
+                <option value="128">128 bits — 32 caractères</option>
+                <option value="256" selected>256 bits — 64 caractères</option>
+                <option value="384">384 bits — 96 caractères</option>
+                <option value="512">512 bits — 128 caractères</option>
+            </select>
+        </div>
+
+        <div class="sg-result-box">
+            <code id="hex-result" class="sg-result-code" aria-live="polite"></code>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="hex-regen">
+                <i class="fas fa-arrows-rotate" aria-hidden="true"></i> Régénérer
+            </button>
+            <button class="btn btn-sm btn-primary" id="hex-copy">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+        </div>
+    </div>
+
+    {# ── UUID v4 ───────────────────────────────────────────────────────────── #}
+    <div class="card-modern">
+        <h2 class="card-title">
+            <i class="fas fa-id-card fa-fw" aria-hidden="true"></i>
+            UUID v4
+        </h2>
+        <p style="font-size:0.875rem; color:var(--color-text-secondary); margin-bottom:1rem;">
+            Identifiant universellement unique, format RFC 4122, 122 bits d'aléatoire.
+        </p>
+
+        <div class="sg-result-box">
+            <code id="uuid-result" class="sg-result-code" aria-live="polite"></code>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="uuid-regen">
+                <i class="fas fa-arrows-rotate" aria-hidden="true"></i> Régénérer
+            </button>
+            <button class="btn btn-sm btn-primary" id="uuid-copy">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+        </div>
+    </div>
+
+    {# ── Base64URL ─────────────────────────────────────────────────────────── #}
+    <div class="card-modern">
+        <h2 class="card-title">
+            <i class="fas fa-key fa-fw" aria-hidden="true"></i>
+            Clé base64url
+        </h2>
+        <p style="font-size:0.875rem; color:var(--color-text-secondary); margin-bottom:1rem;">
+            Sans padding, sans caractères <code>+</code>/<code>/</code> — safe pour URLs et headers HTTP.
+        </p>
+
+        <div class="mb-3">
+            <label class="form-label" for="b64-bits">Taille</label>
+            <select id="b64-bits" class="form-select">
+                <option value="128">128 bits — 22 caractères</option>
+                <option value="256" selected>256 bits — 43 caractères</option>
+                <option value="512">512 bits — 86 caractères</option>
+            </select>
+        </div>
+
+        <div class="sg-result-box">
+            <code id="b64-result" class="sg-result-code" aria-live="polite"></code>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="b64-regen">
+                <i class="fas fa-arrows-rotate" aria-hidden="true"></i> Régénérer
+            </button>
+            <button class="btn btn-sm btn-primary" id="b64-copy">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<style nonce="{{ csp_nonce() }}">
+.sg-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+    max-width: 900px;
+    margin: 0 auto 2rem;
+    padding: 0 1rem;
+}
+.sg-result-box {
+    background: var(--color-bg-page);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.sg-result-code {
+    font-family: monospace;
+    font-size: 0.88rem;
+    word-break: break-all;
+    color: var(--color-primary);
+    line-height: 1.5;
+}
+.sg-strength {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.sg-strength.strong { color: #166534; }
+.sg-strength.medium { color: #854F0B; }
+.sg-strength.weak   { color: #991B1B; }
+[data-theme="dark"] .sg-strength.strong { color: #4ADE80; }
+[data-theme="dark"] .sg-strength.medium { color: #EF9F27; }
+[data-theme="dark"] .sg-strength.weak   { color: #F87171; }
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+
+/* ── Password ──────────────────────────────────────────────── */
+const LOWER_FULL  = 'abcdefghijklmnopqrstuvwxyz';
+const UPPER_FULL  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const DIGITS_FULL = '0123456789';
+const LOWER_SAFE  = 'abcdefghjkmnpqrstuvwxyz';   // no l
+const UPPER_SAFE  = 'ABCDEFGHJKLMNPQRSTUVWXYZ';   // no I, O
+const DIGITS_SAFE = '23456789';                    // no 0, 1
+const SYMBOLS     = '!@#$%^&*-_+=?';
+
+function randomPassword() {
+    const len     = parseInt(document.getElementById('pw-len').value);
+    const noAmbig = document.getElementById('pw-noambig').checked;
+    let charset   = '';
+    if (document.getElementById('pw-lower').checked)   charset += noAmbig ? LOWER_SAFE  : LOWER_FULL;
+    if (document.getElementById('pw-upper').checked)   charset += noAmbig ? UPPER_SAFE  : UPPER_FULL;
+    if (document.getElementById('pw-digits').checked)  charset += noAmbig ? DIGITS_SAFE : DIGITS_FULL;
+    if (document.getElementById('pw-symbols').checked) charset += SYMBOLS;
+    if (!charset) charset = LOWER_SAFE;
+
+    const chars = [...charset];
+    const max   = Math.floor(65536 / chars.length) * chars.length;
+    const result = [];
+    while (result.length < len) {
+        const r = crypto.getRandomValues(new Uint16Array(len - result.length + 8));
+        for (const n of r) {
+            if (result.length >= len) break;
+            if (n < max) result.push(chars[n % chars.length]);
+        }
+    }
+    return result.join('');
+}
+
+function pwStrength(pw) {
+    let score = 0;
+    if (pw.length >= 12) score++;
+    if (pw.length >= 20) score++;
+    if (/[a-z]/.test(pw)) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/\d/.test(pw))    score++;
+    if (/[^a-zA-Z0-9]/.test(pw)) score++;
+    if (score >= 5) return { cls: 'strong', label: 'Fort' };
+    if (score >= 3) return { cls: 'medium', label: 'Moyen' };
+    return { cls: 'weak', label: 'Faible' };
+}
+
+function genPw() {
+    const pw = randomPassword();
+    document.getElementById('pw-result').textContent = pw;
+    const s = pwStrength(pw);
+    const el = document.getElementById('pw-strength');
+    el.textContent = s.label;
+    el.className = 'sg-strength ' + s.cls;
+}
+
+document.getElementById('pw-len').addEventListener('input', function () {
+    document.getElementById('pw-len-val').textContent = this.value;
+    genPw();
+});
+['pw-lower','pw-upper','pw-digits','pw-symbols','pw-noambig'].forEach(id => {
+    document.getElementById(id).addEventListener('change', genPw);
+});
+document.getElementById('pw-regen').addEventListener('click', genPw);
+document.getElementById('pw-copy').addEventListener('click', () => copyEl('pw-result', 'pw-copy'));
+
+/* ── Hex token ─────────────────────────────────────────────── */
+function genHex() {
+    const bits = parseInt(document.getElementById('hex-bits').value);
+    const bytes = crypto.getRandomValues(new Uint8Array(bits / 8));
+    document.getElementById('hex-result').textContent = [...bytes].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+document.getElementById('hex-bits').addEventListener('change', genHex);
+document.getElementById('hex-regen').addEventListener('click', genHex);
+document.getElementById('hex-copy').addEventListener('click', () => copyEl('hex-result', 'hex-copy'));
+
+/* ── UUID v4 ───────────────────────────────────────────────── */
+function genUuid() {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    const h = [...b].map(x => x.toString(16).padStart(2,'0')).join('');
+    document.getElementById('uuid-result').textContent =
+        `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
+document.getElementById('uuid-regen').addEventListener('click', genUuid);
+document.getElementById('uuid-copy').addEventListener('click', () => copyEl('uuid-result', 'uuid-copy'));
+
+/* ── Base64url ─────────────────────────────────────────────── */
+function genB64() {
+    const bits  = parseInt(document.getElementById('b64-bits').value);
+    const bytes = crypto.getRandomValues(new Uint8Array(Math.ceil(bits / 8)));
+    const b64   = btoa(String.fromCharCode(...bytes))
+        .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    document.getElementById('b64-result').textContent = b64;
+}
+document.getElementById('b64-bits').addEventListener('change', genB64);
+document.getElementById('b64-regen').addEventListener('click', genB64);
+document.getElementById('b64-copy').addEventListener('click', () => copyEl('b64-result', 'b64-copy'));
+
+/* ── Copy helper ───────────────────────────────────────────── */
+function copyEl(srcId, btnId) {
+    const text = document.getElementById(srcId).textContent;
+    const btn  = document.getElementById(btnId);
+    navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> Copié !';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    }).catch(() => {});
+}
+
+/* ── Init ─────────────────────────────────────────────────── */
+genPw(); genHex(); genUuid(); genB64();
+
+})();
+</script>
+{% endblock %}
