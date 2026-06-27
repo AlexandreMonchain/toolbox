@@ -71,9 +71,8 @@ RUN composer install \
     --no-scripts \
     --no-progress
 
-# Assets : bundles + vendor JS (importmap) + compilation AssetMapper → public/assets/
-RUN php bin/console assets:install public \
-    && php bin/console importmap:install \
+# Assets AssetMapper : vendor JS (importmap) + compilation → public/assets/
+RUN php bin/console importmap:install \
     && php bin/console asset-map:compile
 
 # Cache chaud dans l'image — pas à chaque démarrage du container
