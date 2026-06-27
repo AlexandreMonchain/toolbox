@@ -72,7 +72,8 @@ RUN composer install \
     --no-progress
 
 # Assets AssetMapper : vendor JS (importmap) + compilation → public/assets/
-RUN php bin/console importmap:install \
+# importmap:install peut échouer si jspm.io est injoignable depuis le build host (|| true = non bloquant)
+RUN php bin/console importmap:install || true \
     && php bin/console asset-map:compile
 
 # Cache chaud dans l'image — pas à chaque démarrage du container
