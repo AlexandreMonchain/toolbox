@@ -36,7 +36,8 @@ services:
 
     networks:
       - internal
-      - proxy
+      # Décommenter quand un RP Nginx partage ce réseau sur le serveur :
+      # - proxy
 
   db:
     image: postgres:17-alpine
@@ -68,5 +69,6 @@ volumes:
 networks:
   internal:
     driver: bridge
-  proxy:
-    external: true
+  # Décommenter quand le réseau proxy existe sur le serveur (stack Nginx RP) :
+  # proxy:
+  #   external: true
