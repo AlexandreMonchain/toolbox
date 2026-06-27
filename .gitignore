@@ -11,6 +11,7 @@
 
 ###> local config ###
 /.env.dev
+/.env.docker
 /.claude/
 /CLAUDE.md
 ###< local config ###
