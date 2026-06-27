@@ -69,7 +69,8 @@ RUN composer install \
     --optimize-autoloader \
     --no-interaction \
     --no-scripts \
-    --no-progress
+    --no-progress \
+    --ignore-platform-reqs
 
 # Assets AssetMapper : vendor JS (importmap) + compilation → public/assets/
 # importmap:install peut échouer si jspm.io est injoignable depuis le build host (|| true = non bloquant)
