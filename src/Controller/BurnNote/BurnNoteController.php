@@ -228,6 +228,7 @@ class BurnNoteController extends AbstractController
         return $this->noStore($this->render('burnnote/show.html.twig', [
             'secret'         => $secret,
             'viewsRemaining' => $note->getViewsRemaining(),
+            'expiresAt'      => $note->getExpiresAt(),
             'token'          => $token,
         ]));
     }

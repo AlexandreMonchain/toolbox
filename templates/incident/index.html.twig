@@ -68,6 +68,29 @@
 
 </div>
 
+{# ── Modal confirmation reset ──────────────────────────────────────────── #}
+<div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-hover);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="resetModalLabel" style="color: var(--color-text-primary);">
+                    <i class="fas fa-stop text-danger" aria-hidden="true"></i> Terminer l'incident
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body" style="color: var(--color-text-secondary);">
+                Terminer l'incident et réinitialiser le minuteur ? La timeline sera perdue.
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="inc-reset-confirm">
+                    <i class="fas fa-stop" aria-hidden="true"></i> Terminer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style nonce="{{ csp_nonce() }}">
 .inc-timer {
     font-family: monospace;
@@ -299,7 +322,11 @@ document.getElementById('inc-pause').addEventListener('click', () => {
 });
 
 document.getElementById('inc-reset').addEventListener('click', () => {
-    if (!confirm('Terminer l\'incident et réinitialiser le minuteur ?')) return;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('resetModal')).show();
+});
+
+document.getElementById('inc-reset-confirm').addEventListener('click', () => {
+    bootstrap.Modal.getInstance(document.getElementById('resetModal')).hide();
     cancelAnimationFrame(rafId);
     localStorage.removeItem(LS_KEY);
     state = { status: 'idle', startEpoch: null, elapsedOnPause: 0, events: [] };

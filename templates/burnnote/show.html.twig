@@ -18,16 +18,45 @@
     <div class="container" style="max-width: 640px;">
         <div class="card-modern">
 
-            <label class="form-label">Secret</label>
+            {# ── Badges vues + temps restant (uniquement si des vues restent) ── #}
+            {% if viewsRemaining > 0 %}
+            <div class="d-flex gap-3 mb-3 flex-wrap">
+                <span class="bn-badge">
+                    <i class="fas fa-eye fa-fw" aria-hidden="true"></i>
+                    {{ viewsRemaining }} vue{{ viewsRemaining > 1 ? 's' : '' }} restante{{ viewsRemaining > 1 ? 's' : '' }}
+                </span>
+                <span class="bn-badge" id="bn-time-badge">
+                    <i class="fas fa-clock fa-fw" aria-hidden="true"></i>
+                    <span id="bn-countdown">…</span>
+                </span>
+            </div>
+            {% endif %}
+
+            <label class="form-label d-flex align-items-center gap-2">
+                Secret
+                <span class="text-muted" style="font-size:0.78rem; font-weight:400;" id="blur-hint">
+                    <i class="fas fa-eye-slash fa-fw" aria-hidden="true"></i> Cliquez pour révéler
+                </span>
+            </label>
+
             <div class="d-flex gap-2 align-items-start">
-                <textarea
-                    id="secret-value"
-                    class="form-control"
-                    rows="5"
-                    readonly
-                    spellcheck="false"
-                >{{ secret }}</textarea>
-                <button class="btn btn-secondary" id="copy-btn" title="Copier">
+
+                <div class="secret-wrapper flex-grow-1">
+                    <textarea
+                        id="secret-value"
+                        class="form-control secret-blurred"
+                        rows="5"
+                        readonly
+                        spellcheck="false"
+                        aria-label="Contenu du secret (flouté par défaut)"
+                    >{{ secret }}</textarea>
+                    <div class="secret-reveal-overlay" id="reveal-overlay" tabindex="0" role="button" aria-label="Révéler le secret">
+                        <i class="fas fa-eye fa-lg" aria-hidden="true"></i>
+                        <span>Cliquer pour révéler</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary flex-shrink-0" id="copy-btn" title="Copier le secret">
                     <i class="fas fa-copy" aria-hidden="true"></i>
                 </button>
             </div>
@@ -85,19 +114,73 @@
 
 {% block script %}
 <script nonce="{{ csp_nonce() }}">
+(function () {
+
+    /* ── Reveal / blur ──────────────────────────────────────────────────── */
+    const field   = document.getElementById('secret-value');
+    const overlay = document.getElementById('reveal-overlay');
+    const hint    = document.getElementById('blur-hint');
+
+    function reveal() {
+        field.classList.remove('secret-blurred');
+        overlay.style.display = 'none';
+        if (hint) hint.style.display = 'none';
+        field.focus();
+    }
+
+    overlay.addEventListener('click', reveal);
+    overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reveal(); }
+    });
+
+    /* ── Copier (fonctionne qu'il soit flouté ou non) ───────────────────── */
     const btn = document.getElementById('copy-btn');
     btn.addEventListener('click', () => {
-        const textarea = document.getElementById('secret-value');
-        navigator.clipboard.writeText(textarea.value).then(() => {
-            btn.innerHTML = '<i class="fas fa-check"></i>';
-            btn.classList.add('btn-primary');
-            btn.classList.remove('btn-secondary');
+        // .value est accessible indépendamment du filtre CSS
+        navigator.clipboard.writeText(field.value).then(() => {
+            btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+            btn.classList.replace('btn-secondary', 'btn-success');
             setTimeout(() => {
-                btn.innerHTML = '<i class="fas fa-copy"></i>';
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-secondary');
+                btn.innerHTML = '<i class="fas fa-copy" aria-hidden="true"></i>';
+                btn.classList.replace('btn-success', 'btn-secondary');
             }, 2000);
-        });
+        }).catch(() => {});
     });
+
+    /* ── Countdown ─────────────────────────────────────────────────────── */
+    {% if viewsRemaining > 0 %}
+    (function () {
+        const EXPIRES_TS = {{ expiresAt.timestamp }};
+
+        function fmtCountdown(nowS) {
+            const diff = EXPIRES_TS - nowS;
+            if (diff <= 0) return null;
+            const h = Math.floor(diff / 3600);
+            const m = Math.floor((diff % 3600) / 60);
+            const s = diff % 60;
+            if (h > 0) return `Expire dans ${h}h ${String(m).padStart(2, '0')}min`;
+            if (m > 0) return `Expire dans ${m}min ${String(s).padStart(2, '0')}s`;
+            return `Expire dans ${s}s`;
+        }
+
+        const el    = document.getElementById('bn-countdown');
+        const badge = document.getElementById('bn-time-badge');
+
+        function tick() {
+            const label = fmtCountdown(Math.floor(Date.now() / 1000));
+            if (label === null) {
+                el.textContent = 'Expiré';
+                if (badge) badge.style.opacity = '0.5';
+                return;
+            }
+            el.textContent = label;
+            setTimeout(tick, 1000);
+        }
+
+        tick();
+    })();
+    {% endif %}
+
+})();
 </script>
 {% endblock %}

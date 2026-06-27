@@ -6,19 +6,29 @@
     <section class="hero-section">
         <div class="hero-icon">🔥</div>
         <h1 class="hero-title">Un secret vous attend</h1>
-        <p class="hero-subtitle">
-            Ce lien contient un message chiffré.
-            {% if maxViews >= 9223372036854775807 %}
-                Il peut être consulté un nombre illimité de fois.
-            {% elseif maxViews == 1 %}
-                Il sera détruit après cette lecture.
-            {% else %}
-                Il peut encore être consulté {{ maxViews }} fois.
-            {% endif %}
-        </p>
+        <p class="hero-subtitle">Ce lien contient un message chiffré. Vérifiez les informations ci-dessous avant de le révéler.</p>
     </section>
 
     <div class="container text-center" style="max-width: 480px;">
+
+        {# ── Badges vues + temps restant ──────────────────────────────────── #}
+        <div class="d-flex justify-content-center gap-3 mb-4 flex-wrap">
+            <span class="bn-badge">
+                <i class="fas fa-eye fa-fw" aria-hidden="true"></i>
+                {% if maxViews >= 9223372036854775807 %}
+                    Vues illimitées
+                {% elseif maxViews == 1 %}
+                    1 vue restante · sera détruite après
+                {% else %}
+                    {{ maxViews }} vues restantes
+                {% endif %}
+            </span>
+            <span class="bn-badge" id="bn-time-badge">
+                <i class="fas fa-clock fa-fw" aria-hidden="true"></i>
+                <span id="bn-countdown">…</span>
+            </span>
+        </div>
+
         <div class="card-modern mb-4" style="padding: 2rem;">
             <p class="text-muted mb-4" style="font-size: 0.9rem;">
                 <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
@@ -38,4 +48,42 @@
             Chiffré AES-256-GCM · Hébergé sur infrastructure privée
         </p>
     </div>
+{% endblock %}
+
+{% block script %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    const EXPIRES_TS = {{ expiresAt.timestamp }};
+
+    function fmtCountdown(nowS) {
+        const diff = EXPIRES_TS - nowS;
+        if (diff <= 0) return null;
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+        if (h > 0) return `Expire dans ${h}h ${String(m).padStart(2, '0')}min`;
+        if (m > 0) return `Expire dans ${m}min ${String(s).padStart(2, '0')}s`;
+        return `Expire dans ${s}s`;
+    }
+
+    const el = document.getElementById('bn-countdown');
+    const badge = document.getElementById('bn-time-badge');
+
+    function tick() {
+        const now = Math.floor(Date.now() / 1000);
+        const label = fmtCountdown(now);
+        if (label === null) {
+            el.textContent = 'Expiré';
+            badge.style.opacity = '0.5';
+            // Recharger pour afficher la page expirée
+            window.location.reload();
+            return;
+        }
+        el.textContent = label;
+        setTimeout(tick, 1000);
+    }
+
+    tick();
+})();
+</script>
 {% endblock %}

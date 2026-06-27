@@ -1,0 +1,362 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Convertisseur Base64 — Toolbox{% endblock %}
+{% block og_title %}Convertisseur Base64 — Toolbox{% endblock %}
+{% block og_description %}Encodez et décodez du Base64 (standard ou URL-safe) directement dans le navigateur. Support UTF-8 complet.{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">🔣</div>
+    <h1 class="hero-title">Convertisseur Base64</h1>
+    <p class="hero-subtitle">Encodage et décodage Base64 bidirectionnel. Standard ou URL-safe. 100 % local, aucune donnée envoyée.</p>
+</section>
+
+<div class="container" style="max-width:860px;">
+
+    {# ── Options ───────────────────────────────────────────────────────── #}
+    <div class="card-modern mb-3">
+        <div class="d-flex align-items-center gap-4 flex-wrap">
+            <label class="d-flex align-items-center gap-2 mb-0" style="cursor:pointer; user-select:none;">
+                <input type="checkbox" id="url-safe" class="form-check-input mt-0">
+                <span style="font-size:0.9rem; font-weight:500;">URL-safe <code style="font-size:0.8em;">base64url</code></span>
+            </label>
+            <span class="text-muted" style="font-size:0.8rem;">
+                Remplace <code>+</code>→<code>-</code> et <code>/</code>→<code>_</code>, sans padding <code>=</code>
+            </span>
+            <button class="btn btn-sm btn-outline-secondary ms-auto" id="swap-btn" title="Inverser les deux zones">
+                <i class="fas fa-right-left" aria-hidden="true"></i> Inverser
+            </button>
+        </div>
+    </div>
+
+    {# ── Zone principale bidirectionnelle ──────────────────────────────── #}
+    <div class="b64-grid">
+
+        {# Côté gauche : texte brut #}
+        <div class="b64-pane">
+            <div class="b64-pane-header">
+                <span class="b64-pane-label">
+                    <i class="fas fa-font fa-fw" aria-hidden="true"></i>
+                    Texte brut
+                </span>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" id="copy-plain" title="Copier le texte brut">
+                        <i class="fas fa-copy" aria-hidden="true"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="clear-plain" title="Effacer">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+            <textarea
+                id="txt-plain"
+                class="form-control b64-textarea"
+                placeholder="Saisissez du texte…"
+                spellcheck="false"
+                autocomplete="off"
+                aria-label="Texte brut"
+            ></textarea>
+            <div class="b64-info" id="info-plain">&nbsp;</div>
+        </div>
+
+        {# Flèches bidirectionnelles #}
+        <div class="b64-arrow" aria-hidden="true">
+            <i class="fas fa-right-left b64-arrow-icon"></i>
+        </div>
+
+        {# Côté droit : base64 #}
+        <div class="b64-pane">
+            <div class="b64-pane-header">
+                <span class="b64-pane-label">
+                    <i class="fas fa-code fa-fw" aria-hidden="true"></i>
+                    Base64
+                </span>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" id="copy-b64" title="Copier le Base64">
+                        <i class="fas fa-copy" aria-hidden="true"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="clear-b64" title="Effacer">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+            <textarea
+                id="txt-b64"
+                class="form-control b64-textarea b64-mono"
+                placeholder="Collez du Base64…"
+                spellcheck="false"
+                autocomplete="off"
+                aria-label="Base64"
+            ></textarea>
+            <div class="b64-info" id="info-b64">&nbsp;</div>
+        </div>
+
+    </div>
+
+    {# ── Bandeau d'erreur #}
+    <div class="b64-error" id="b64-error" style="display:none;">
+        <i class="fas fa-exclamation-triangle fa-fw" aria-hidden="true"></i>
+        <span id="b64-error-msg"></span>
+    </div>
+
+</div>
+
+<style nonce="{{ csp_nonce() }}">
+.b64-grid {
+    display: grid;
+    grid-template-columns: 1fr 36px 1fr;
+    gap: 0;
+    align-items: start;
+}
+@media (max-width: 640px) {
+    .b64-grid { grid-template-columns: 1fr; }
+    .b64-arrow { transform: rotate(90deg); margin: 0.25rem auto; }
+}
+.b64-pane {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.b64-pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.875rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-light);
+}
+.b64-pane-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.b64-textarea {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    resize: none;
+    min-height: 220px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    background: var(--color-bg-card) !important;
+    color: var(--color-text-primary) !important;
+}
+.b64-textarea:focus { box-shadow: none !important; outline: 2px solid var(--color-primary) !important; outline-offset: -2px; }
+.b64-mono { font-family: 'Courier New', monospace; font-size: 0.82rem; word-break: break-all; }
+.b64-info {
+    padding: 0.3rem 0.875rem;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    border-top: 1px solid var(--color-border);
+    min-height: 1.8rem;
+}
+.b64-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 3.2rem;
+}
+.b64-arrow-icon { color: var(--color-text-secondary); font-size: 1rem; opacity: 0.5; }
+.b64-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.6rem 1rem;
+    background: #FEE2E2;
+    color: #991B1B;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+[data-theme="dark"] .b64-error { background: #2C0A0A; color: #F87171; }
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+
+let syncing = false;
+
+/* ── Encodage UTF-8 → Base64 ────────────────────────────────────────── */
+function encodeB64(text, urlSafe) {
+    const bytes = new TextEncoder().encode(text);
+    const bin   = Array.from(bytes, b => String.fromCharCode(b)).join('');
+    let b64     = btoa(bin);
+    if (urlSafe) {
+        b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    return b64;
+}
+
+/* ── Base64 → UTF-8 ─────────────────────────────────────────────────── */
+function decodeB64(b64, urlSafe) {
+    // Normaliser URL-safe → standard
+    let s = b64.replace(/-/g, '+').replace(/_/g, '/');
+    // Rétablir le padding
+    const rem = s.length % 4;
+    if (rem === 2) s += '==';
+    else if (rem === 3) s += '=';
+    const bin   = atob(s);
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+}
+
+/* ── Valide si la chaîne est du Base64 plausible ────────────────────── */
+function looksLikeB64(s) {
+    return /^[A-Za-z0-9+/\-_]*={0,2}$/.test(s.replace(/\s/g, ''));
+}
+
+/* ── Taille humaine ─────────────────────────────────────────────────── */
+function fmtBytes(n) {
+    if (n < 1024) return `${n} o`;
+    return `${(n / 1024).toFixed(1)} Ko`;
+}
+
+/* ── Refs DOM ────────────────────────────────────────────────────────── */
+const txtPlain  = document.getElementById('txt-plain');
+const txtB64    = document.getElementById('txt-b64');
+const infoPlain = document.getElementById('info-plain');
+const infoB64   = document.getElementById('info-b64');
+const chkUrl    = document.getElementById('url-safe');
+const errBar    = document.getElementById('b64-error');
+const errMsg    = document.getElementById('b64-error-msg');
+
+function clearError() {
+    errBar.style.display = 'none';
+    errMsg.textContent   = '';
+    txtB64.classList.remove('is-invalid');
+}
+
+function showError(msg) {
+    errMsg.textContent   = msg;
+    errBar.style.display = 'flex';
+    txtB64.classList.add('is-invalid');
+}
+
+function updateInfoPlain(text) {
+    const chars = text.length;
+    const bytes = new TextEncoder().encode(text).length;
+    infoPlain.textContent = chars === 0 ? ' ' :
+        `${chars.toLocaleString('fr')} car. · ${fmtBytes(bytes)} UTF-8`;
+}
+
+function updateInfoB64(b64) {
+    const chars   = b64.length;
+    const urlSafe = chkUrl.checked;
+    infoB64.textContent = chars === 0 ? ' ' :
+        `${chars.toLocaleString('fr')} car. · ${urlSafe ? 'base64url' : 'base64 standard'}`;
+}
+
+/* ── Texte brut → Base64 ────────────────────────────────────────────── */
+function onPlainInput() {
+    if (syncing) return;
+    clearError();
+    syncing = true;
+    const text = txtPlain.value;
+    updateInfoPlain(text);
+    if (text === '') {
+        txtB64.value     = '';
+        infoB64.textContent = ' ';
+    } else {
+        txtB64.value = encodeB64(text, chkUrl.checked);
+        updateInfoB64(txtB64.value);
+    }
+    syncing = false;
+}
+
+/* ── Base64 → Texte brut ─────────────────────────────────────────────── */
+function onB64Input() {
+    if (syncing) return;
+    clearError();
+    syncing = true;
+    const raw = txtB64.value.trim();
+    updateInfoB64(raw);
+    if (raw === '') {
+        txtPlain.value       = '';
+        infoPlain.textContent = ' ';
+    } else if (!looksLikeB64(raw)) {
+        showError('Chaîne Base64 invalide — caractères non autorisés détectés.');
+        txtPlain.value = '';
+    } else {
+        try {
+            const text   = decodeB64(raw, chkUrl.checked);
+            txtPlain.value = text;
+            updateInfoPlain(text);
+        } catch (e) {
+            showError('Impossible de décoder — séquence UTF-8 invalide ou Base64 malformé.');
+            txtPlain.value = '';
+        }
+    }
+    syncing = false;
+}
+
+/* ── URL-safe toggle ─────────────────────────────────────────────────── */
+chkUrl.addEventListener('change', () => {
+    // Ré-encoder le texte brut si présent, sinon re-décoder le b64
+    if (txtPlain.value !== '') {
+        onPlainInput();
+    } else if (txtB64.value !== '') {
+        onB64Input();
+    }
+});
+
+/* ── Inverser ────────────────────────────────────────────────────────── */
+document.getElementById('swap-btn').addEventListener('click', () => {
+    const tmp = txtPlain.value;
+    txtPlain.value = txtB64.value;
+    txtB64.value   = tmp;
+    clearError();
+    // Recalculer depuis le texte brut (nouveau contenu de gauche)
+    onPlainInput();
+});
+
+/* ── Copier ──────────────────────────────────────────────────────────── */
+function makeCopy(btnId, source) {
+    document.getElementById(btnId).addEventListener('click', () => {
+        if (!source.value) return;
+        navigator.clipboard.writeText(source.value).then(() => {
+            const btn  = document.getElementById(btnId);
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+            btn.classList.add('btn-success');
+            btn.classList.remove('btn-outline-secondary');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-secondary');
+            }, 1800);
+        }).catch(() => {});
+    });
+}
+
+makeCopy('copy-plain', txtPlain);
+makeCopy('copy-b64',   txtB64);
+
+/* ── Effacer ─────────────────────────────────────────────────────────── */
+document.getElementById('clear-plain').addEventListener('click', () => {
+    txtPlain.value = '';
+    txtB64.value   = '';
+    infoPlain.textContent = ' ';
+    infoB64.textContent   = ' ';
+    clearError();
+    txtPlain.focus();
+});
+
+document.getElementById('clear-b64').addEventListener('click', () => {
+    txtPlain.value = '';
+    txtB64.value   = '';
+    infoPlain.textContent = ' ';
+    infoB64.textContent   = ' ';
+    clearError();
+    txtB64.focus();
+});
+
+/* ── Listeners ───────────────────────────────────────────────────────── */
+txtPlain.addEventListener('input', onPlainInput);
+txtB64.addEventListener('input', onB64Input);
+
+})();
+</script>
+{% endblock %}
