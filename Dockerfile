@@ -62,29 +62,14 @@ RUN printf '%s\n' \
     'DEFAULT_URI=https://toolbox.alexandremonchain.fr' \
     > /app/.env
 
-# Dépendances de prod uniquement.
-#
-# IMPORTANT — rate limit GitHub : ~133 des archives "dist" du composer.lock sont
-# servies par api.github.com. Non authentifié, GitHub limite à 60 req/h par IP →
-# le téléchargement échoue (HTTP 403) et `composer install` casse pendant le build.
-# Authentifié via un PAT, la limite passe à 5000 req/h.
-#
-# On réutilise GIT_TOKEN (le même que pour le clone) comme token GitHub pour composer.
-# auth.json est écrit dans /root du stage builder — jamais copié dans l'image runtime
-# (seul /app l'est) → le token ne fuit pas dans l'image finale.
-#
-# -v : trace les téléchargements pour diagnostiquer un éventuel échec réseau au build.
-RUN if [ -n "$GIT_TOKEN" ]; then \
-        composer config -g github-oauth.github.com "$GIT_TOKEN"; \
-    fi \
-    && composer install \
-        --no-dev \
-        --prefer-dist \
-        --optimize-autoloader \
-        --no-interaction \
-        --no-scripts \
-        --no-progress \
-        -v
+# Dépendances de prod uniquement
+RUN composer install \
+    --no-dev \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-interaction \
+    --no-scripts \
+    --no-progress
 
 # Assets AssetMapper : compilation des fichiers statiques (assets/ → public/assets/)
 # Pas d'importmap:install : l'app ne charge aucun module via importmap()/Stimulus,
