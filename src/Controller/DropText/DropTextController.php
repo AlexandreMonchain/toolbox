@@ -10,7 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/droptext', name: 'droptext_')]
@@ -31,7 +31,7 @@ class DropTextController extends AbstractController
     #[Route('', name: 'create', methods: ['POST'])]
     public function create(
         Request $request,
-        #[Target('droptextCreateLimiter')] RateLimiterFactory $limiter,
+        #[Target('droptextCreateLimiter')] RateLimiterFactoryInterface $limiter,
     ): Response {
         if (!$this->isCsrfTokenValid('droptext_create', $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Token CSRF invalide.');
@@ -128,7 +128,7 @@ class DropTextController extends AbstractController
     public function unlock(
         string $token,
         Request $request,
-        #[Target('droptextUnlockLimiter')] RateLimiterFactory $limiter,
+        #[Target('droptextUnlockLimiter')] RateLimiterFactoryInterface $limiter,
     ): Response {
         if (!$this->isCsrfTokenValid('droptext_unlock_' . $token, $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Token CSRF invalide.');
@@ -169,7 +169,7 @@ class DropTextController extends AbstractController
     public function burn(
         string $token,
         Request $request,
-        #[Target('droptextBurnLimiter')] RateLimiterFactory $limiter,
+        #[Target('droptextBurnLimiter')] RateLimiterFactoryInterface $limiter,
     ): Response {
         if (!$this->isCsrfTokenValid('droptext_burn_' . $token, $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Token CSRF invalide.');

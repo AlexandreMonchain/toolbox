@@ -6,7 +6,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/csr', name: 'csr_')]
@@ -21,7 +21,7 @@ class CsrController extends AbstractController
     #[Route('/generate', name: 'generate', methods: ['POST'])]
     public function generate(
         Request $request,
-        #[\Symfony\Component\DependencyInjection\Attribute\Target('csrGenerateLimiter')] RateLimiterFactory $limiter,
+        #[\Symfony\Component\DependencyInjection\Attribute\Target('csrGenerateLimiter')] RateLimiterFactoryInterface $limiter,
     ): JsonResponse {
         $limit = $limiter->create($request->getClientIp())->consume();
         if (!$limit->isAccepted()) {

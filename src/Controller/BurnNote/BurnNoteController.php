@@ -11,7 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 
@@ -55,7 +55,7 @@ class BurnNoteController extends AbstractController
         Request $request,
         EncryptionService $encryption,
         EntityManagerInterface $em,
-        #[Target('burnNoteCreateLimiter')] RateLimiterFactory $createLimiter,
+        #[Target('burnNoteCreateLimiter')] RateLimiterFactoryInterface $createLimiter,
     ): Response {
         if ($limited = $this->checkRateLimit($request, $createLimiter)) {
             return $limited;
@@ -116,7 +116,7 @@ class BurnNoteController extends AbstractController
         return $this->redirectToRoute('burnnote_created');
     }
 
-    private function checkRateLimit(Request $request, RateLimiterFactory $factory): ?Response
+    private function checkRateLimit(Request $request, RateLimiterFactoryInterface $factory): ?Response
     {
         $limiter = $factory->create($request->getClientIp());
         if (!$limiter->consume(1)->isAccepted()) {
@@ -130,7 +130,7 @@ class BurnNoteController extends AbstractController
     }
 
     #[Route('/{token}', name: 'show', methods: ['GET'])]
-    public function show(string $token, Request $request, BurnNoteRepository $repository, EntityManagerInterface $em, #[Target('burnNoteLimiter')] RateLimiterFactory $burnnoteRateLimiter): Response
+    public function show(string $token, Request $request, BurnNoteRepository $repository, EntityManagerInterface $em, #[Target('burnNoteLimiter')] RateLimiterFactoryInterface $burnnoteRateLimiter): Response
     {
         if ($limited = $this->checkRateLimit($request, $burnnoteRateLimiter)) {
             return $limited;
@@ -159,7 +159,7 @@ class BurnNoteController extends AbstractController
         Request $request,
         BurnNoteRepository $repository,
         EntityManagerInterface $em,
-        #[Target('burnNoteLimiter')] RateLimiterFactory $burnnoteRateLimiter,
+        #[Target('burnNoteLimiter')] RateLimiterFactoryInterface $burnnoteRateLimiter,
     ): Response {
         if ($limited = $this->checkRateLimit($request, $burnnoteRateLimiter)) {
             return $limited;
@@ -188,7 +188,7 @@ class BurnNoteController extends AbstractController
         BurnNoteRepository $repository,
         EncryptionService $encryption,
         EntityManagerInterface $em,
-        #[Target('burnNoteLimiter')] RateLimiterFactory $burnnoteRateLimiter,
+        #[Target('burnNoteLimiter')] RateLimiterFactoryInterface $burnnoteRateLimiter,
     ): Response {
         if ($limited = $this->checkRateLimit($request, $burnnoteRateLimiter)) {
             return $limited;
