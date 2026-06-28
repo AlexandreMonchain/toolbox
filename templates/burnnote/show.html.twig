@@ -42,14 +42,13 @@
             <div class="d-flex gap-2 align-items-start">
 
                 <div class="secret-wrapper flex-grow-1">
-                    <textarea
+                    <div
                         id="secret-value"
                         class="form-control secret-blurred"
-                        rows="5"
-                        readonly
-                        spellcheck="false"
+                        style="min-height: 130px; display: flex; align-items: center; justify-content: center; text-align: center; word-break: break-all; white-space: pre-wrap; cursor: pointer;"
                         aria-label="Contenu du secret (flouté par défaut)"
-                    >{{ secret }}</textarea>
+                    >{{ secret }}</div>
+                    <textarea id="secret-raw" style="display:none" readonly aria-hidden="true">{{ secret }}</textarea>
                     <div class="secret-reveal-overlay" id="reveal-overlay" tabindex="0" role="button" aria-label="Révéler le secret">
                         <i class="fas fa-eye fa-lg" aria-hidden="true"></i>
                         <span>Cliquer pour révéler</span>
@@ -118,14 +117,20 @@
 
     /* ── Reveal / blur ──────────────────────────────────────────────────── */
     const field   = document.getElementById('secret-value');
+    const raw     = document.getElementById('secret-raw');
     const overlay = document.getElementById('reveal-overlay');
     const hint    = document.getElementById('blur-hint');
 
     function reveal() {
         field.classList.remove('secret-blurred');
         overlay.style.display = 'none';
-        if (hint) hint.style.display = 'none';
-        field.focus();
+        if (hint) hint.innerHTML = '<i class="fas fa-eye-slash fa-fw" aria-hidden="true"></i> Cliquer pour flouter';
+    }
+
+    function reblur() {
+        field.classList.add('secret-blurred');
+        overlay.style.display = '';
+        if (hint) hint.innerHTML = '<i class="fas fa-eye-slash fa-fw" aria-hidden="true"></i> Cliquez pour révéler';
     }
 
     overlay.addEventListener('click', reveal);
@@ -133,11 +138,14 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reveal(); }
     });
 
-    /* ── Copier (fonctionne qu'il soit flouté ou non) ───────────────────── */
+    field.addEventListener('click', function () {
+        if (!field.classList.contains('secret-blurred')) reblur();
+    });
+
+    /* ── Copier ─────────────────────────────────────────────────────────── */
     const btn = document.getElementById('copy-btn');
     btn.addEventListener('click', () => {
-        // .value est accessible indépendamment du filtre CSS
-        navigator.clipboard.writeText(field.value).then(() => {
+        navigator.clipboard.writeText(raw.value).then(() => {
             btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
             btn.classList.replace('btn-secondary', 'btn-success');
             setTimeout(() => {

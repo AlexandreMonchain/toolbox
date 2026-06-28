@@ -161,16 +161,22 @@
 
                 <div class="mb-4">
                     <label for="passphrase" class="form-label">Passphrase <span class="text-muted" style="font-weight:normal;">(optionnelle)</span></label>
-                    <input
-                        type="text"
-                        id="passphrase"
-                        name="passphrase"
-                        class="form-control font-monospace"
-                        placeholder="Laissez vide pour aucune protection"
-                        maxlength="128"
-                        autocomplete="off"
-                        spellcheck="false"
-                    >
+                    <div class="d-flex gap-2 align-items-center">
+                        <input
+                            type="text"
+                            id="passphrase"
+                            name="passphrase"
+                            class="form-control font-monospace"
+                            placeholder="Facultatif — pour une protection renforcée"
+                            maxlength="128"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <button type="button" class="btn btn-secondary btn-sm text-nowrap" id="gen-passphrase-btn" title="Générer une passphrase">
+                            <i class="fas fa-dice" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div id="gen-passphrase-results" class="mt-2" style="display:none;"></div>
                     <div class="form-text">Le destinataire devra saisir cette passphrase avant de pouvoir lire le secret.</div>
                 </div>
 
@@ -188,6 +194,31 @@
             Chiffré AES-256-GCM · Détruit après lecture · Hébergé sur infrastructure privée
         </p>
 
+    </div>
+
+    <div class="modal fade" id="passphraseWarningModal" tabindex="-1"
+         aria-labelledby="passphraseWarningLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-hover);">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="passphraseWarningLabel" style="color: var(--color-text-primary);">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true" style="color: #f59e0b;"></i>
+                        Passphrase à transmettre séparément
+                    </h5>
+                </div>
+                <div class="modal-body" style="color: var(--color-text-secondary);">
+                    Vous avez protégé cette note par une passphrase. <strong style="color: var(--color-text-primary);">Notez-la maintenant — elle ne sera plus affichée une fois le lien créé.</strong>
+                    <br><br>
+                    Transmettez-la à votre destinataire par un canal différent du lien. Idéalement : lien par email, passphrase par SMS — ou l'inverse.
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" id="passphrase-modal-confirm">
+                        <i class="fas fa-check" aria-hidden="true"></i> J'ai compris, créer le lien
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}
 
@@ -241,7 +272,8 @@
     }
 
     // Wiring des boutons (CSP : plus d'attributs onclick inline)
-    document.getElementById('gen-btn').addEventListener('click', generatePassphrase);
+    document.getElementById('gen-btn').addEventListener('click', () => generatePassphrase('secret'));
+    document.getElementById('gen-passphrase-btn').addEventListener('click', () => generatePassphrase('passphrase'));
     document.getElementById('gen-config-toggle').addEventListener('click', toggleGenConfig);
     document.getElementById('gen-reset').addEventListener('click', resetGenConfig);
 
@@ -260,7 +292,15 @@
         cfg.style.display = cfg.style.display === 'none' ? 'block' : 'none';
     }
 
-    async function generatePassphrase() {
+    let genTarget = 'secret';
+
+    const GEN_RESULTS_MAP = {
+        'secret':     'gen-results',
+        'passphrase': 'gen-passphrase-results',
+    };
+
+    async function generatePassphrase(targetId = 'secret') {
+        genTarget = targetId;
         const btn = document.getElementById('gen-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Génération...';
@@ -280,7 +320,7 @@
         try {
             const res  = await fetch('https://passphrase.fr/api/passwords?' + params);
             const data = await res.json();
-            const list = document.getElementById('gen-results');
+            const list = document.getElementById(GEN_RESULTS_MAP[genTarget]);
             list.style.display = 'block';
 
             const grid = document.createElement('div');
@@ -308,8 +348,9 @@
             list.innerHTML = '';
             list.appendChild(grid);
         } catch(e) {
-            document.getElementById('gen-results').innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Impossible de contacter passphrase.fr</p>';
-            document.getElementById('gen-results').style.display = 'block';
+            const errList = document.getElementById(GEN_RESULTS_MAP[genTarget]);
+            errList.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Impossible de contacter passphrase.fr</p>';
+            errList.style.display = 'block';
         }
 
         btn.disabled = false;
@@ -317,9 +358,24 @@
     }
 
     function usePassphrase(el) {
-        document.getElementById('secret').value = el.querySelector('.gen-result-text').textContent;
-        document.getElementById('gen-results').style.display = 'none';
+        document.getElementById(genTarget).value = el.querySelector('.gen-result-text').textContent;
+        document.getElementById(GEN_RESULTS_MAP[genTarget]).style.display = 'none';
     }
+
+    // Interception du submit si passphrase renseignée
+    const burnForm = document.querySelector('form');
+    let formConfirmed = false;
+    burnForm.addEventListener('submit', function (e) {
+        if (formConfirmed) return;
+        if (document.getElementById('passphrase').value.trim() === '') return;
+        e.preventDefault();
+        new bootstrap.Modal(document.getElementById('passphraseWarningModal')).show();
+    });
+    document.getElementById('passphrase-modal-confirm').addEventListener('click', function () {
+        bootstrap.Modal.getInstance(document.getElementById('passphraseWarningModal')).hide();
+        formConfirmed = true;
+        burnForm.requestSubmit();
+    });
 
     const TTL_STEPS = [1, 6, 12, 18, 24];
     for (let d = 2; d <= 30; d++) TTL_STEPS.push(d * 24);

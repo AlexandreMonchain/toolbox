@@ -8,6 +8,9 @@ security:
         users_in_memory: { memory: null }
 
     firewalls:
+        dev:
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
         main:
             lazy: true
             provider: users_in_memory
@@ -16,13 +19,6 @@ security:
     access_control:
         # - { path: ^/admin, roles: ROLE_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }
-
-when@dev:
-    security:
-        firewalls:
-            dev:
-                pattern: ^/(_profiler|_wdt|assets|build)/
-                security: false
 
 when@test:
     security:

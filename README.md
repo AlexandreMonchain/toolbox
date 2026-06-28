@@ -22,9 +22,11 @@ Trois d'entre eux traitent des données sensibles et méritent une attention par
 
 Partagez un secret (mot de passe, clé API, information confidentielle) via un lien unique qui s'autodétruit.
 
+Largement inspiré du projet open source [pwpush](https://github.com/pglombardo/PasswordPusher), avec en plus un système de **rotation de clé de chiffrement** : en cas de changement de clé maître, les anciens secrets restent lisibles via `APP_ENCRYPTION_KEY_PREVIOUS`. Les deux clés coexistent le temps que tous les secrets actifs expirent naturellement.
+
 - Chiffrement **AES-256-GCM** avant stockage en base
-- Le secret est **supprimé après la dernière lecture autorisée** (nombre de vues configurable : 1 à 100, ou illimité)
-- Expiration configurable : de 1 heure à 30 jours
+- Passphrase optionnelle, hachée en **Argon2ID** côté serveur — le destinataire doit la saisir pour accéder au secret
+- Nombre de vues configurable (1 à 100, ou illimité) et expiration de 1 heure à 30 jours
 - Destruction manuelle possible avant expiration
 - Aucun contenu en clair en base de données
 
@@ -76,6 +78,7 @@ docker compose -f compose.prod.yaml --env-file .env.docker up --build -d
 |---|---|---|---|
 | `APP_SECRET` | ✅ | — | Secret Symfony (min. 32 caractères, unique par instance) |
 | `APP_ENCRYPTION_KEY` | ✅ | — | Clé AES-256 pour BurnNote/DropText (64 caractères hex) |
+| `APP_ENCRYPTION_KEY_PREVIOUS` | — | — | Ancienne(s) clé(s) séparées par des virgules — voir procédure de rotation ci-dessous |
 | `POSTGRES_DB` | ✅ | — | Nom de la base de données PostgreSQL |
 | `POSTGRES_USER` | ✅ | — | Utilisateur PostgreSQL |
 | `POSTGRES_PASSWORD` | ✅ | — | Mot de passe PostgreSQL |
@@ -85,6 +88,27 @@ docker compose -f compose.prod.yaml --env-file .env.docker up --build -d
 | `GIT_BRANCH` | — | `main` | Branche à cloner au build |
 | `GIT_TOKEN` | — | — | Token d'accès si dépôt privé |
 | `CACHE_BUST` | — | `1` | Incrémenter pour invalider le cache Docker et forcer un nouveau clone |
+
+### Rotation de la clé de chiffrement
+
+La durée de vie maximale d'un BurnNote est de 30 jours. La procédure de rotation est donc :
+
+**J1 — Changement de clé**
+```bash
+# Générer une nouvelle clé
+APP_ENCRYPTION_KEY=<nouvelle_clé>
+APP_ENCRYPTION_KEY_PREVIOUS=<ancienne_clé>   # les secrets existants restent lisibles
+```
+
+**J31 — Nettoyage** (tous les secrets chiffrés avec l'ancienne clé ont expiré)
+```bash
+APP_ENCRYPTION_KEY=<nouvelle_clé>
+# APP_ENCRYPTION_KEY_PREVIOUS peut être supprimée
+```
+
+Si plusieurs rotations se sont succédé sans nettoyage, `APP_ENCRYPTION_KEY_PREVIOUS` accepte plusieurs clés séparées par des virgules.
+
+---
 
 ### Génération des secrets
 
