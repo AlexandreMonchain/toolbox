@@ -28,7 +28,7 @@ services:
       MAILER_DSN: null://null
 
     ports:
-      - "${BIND_HOST:-0.0.0.0}:${PORT:-8000}:80"
+      - "${REVERSE_PROXY_ADDRESS:-0.0.0.0}:${PORT:-8000}:80"
 
     depends_on:
       db:
