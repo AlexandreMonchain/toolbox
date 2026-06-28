@@ -3,15 +3,47 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <meta name="description" content="Boîte à outils pour RSI et sysadmins. PwPush, générateur CSR, calculateur réseau et plus encore.">
-        <meta name="robots" content="index, follow">
+
+        <title>{% block title %}Toolbox{% endblock %}</title>
+        <meta name="description" content="{% block meta_description %}Une collection d'outils web gratuits et open source : partage de secrets chiffrés, générateur CSR, calculateur réseau, QR codes et plus encore.{% endblock %}">
         <meta name="author" content="Alexandre Monchain">
-        <meta property="og:title" content="{% block og_title %}Toolbox — Outils pour RSI & sysadmins{% endblock %}">
-        <meta property="og:description" content="{% block og_description %}Boîte à outils open source pour RSI et sysadmins.{% endblock %}">
+
+        {# Canonical : URL sans query string — évite le duplicate content #}
+        <link rel="canonical" href="{{ app.request.schemeAndHttpHost ~ app.request.pathInfo }}">
+
+        {# Open Graph #}
+        <meta property="og:title" content="{% block og_title %}{{ block('title') }}{% endblock %}">
+        <meta property="og:description" content="{% block og_description %}{{ block('meta_description') }}{% endblock %}">
+        <meta property="og:image" content="{% block og_image %}{{ absolute_url(asset('og-image.png')) }}{% endblock %}">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
         <meta property="og:url" content="{{ app.request.uri }}">
-        <meta property="og:type" content="website">
+        <meta property="og:type" content="{% block og_type %}website{% endblock %}">
         <meta property="og:site_name" content="Toolbox">
+        <meta property="og:locale" content="fr_FR">
+
+        {# Twitter / X Cards #}
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ block('og_title') }}">
+        <meta name="twitter:description" content="{{ block('og_description') }}">
+        <meta name="twitter:image" content="{{ block('og_image') }}">
+
         <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+        <meta name="theme-color" content="#6366F1">
+
+        {# Structured Data JSON-LD — porte le nonce CSP (script-src strict) #}
+        {% block structured_data %}
+        <script type="application/ld+json" nonce="{{ csp_nonce() }}">
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Toolbox",
+            "url": "https://toolbox.alexandremonchain.fr",
+            "logo": "{{ absolute_url(asset('favicon.svg')) }}",
+            "sameAs": ["https://github.com/AlexandreMonchain/toolbox"]
+        }
+        </script>
+        {% endblock %}
         <!-- Theme: set immediately to avoid flash of wrong theme -->
         <script nonce="{{ csp_nonce() }}">(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
         <!-- Google Fonts: Inter -->
@@ -20,7 +52,6 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <!-- Font Awesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
-        <title>{% block title %}Toolbox{% endblock %}</title>
         <link rel="stylesheet" href="{{ asset('bootstrap.min.css') }}">
         <link rel="stylesheet" href="{{ asset('app.css') }}">
     </head>
