@@ -9,7 +9,6 @@ echo "→ Starting container..."
 mkdir -p var/cache var/log var/share
 chown -R www-data:www-data var
 chmod -R ug+rwX var
-chown -R www-data:www-data /var/log/apache2
 
 # Migrations Doctrine — en www-data (/app appartient à www-data)
 echo "→ Running migrations..."
@@ -20,6 +19,9 @@ gosu www-data php bin/console doctrine:migrations:migrate \
 
 # Pas de cache:clear ni cache:warmup ici : le cache est chaud dans l'image
 
-# Drop définitif vers www-data — Apache n'a pas besoin de root sur le port 8080
+# Apache : le master tourne en root (ouvre le socket + les logs /dev/stderr),
+# les workers passent en www-data via la directive `User www-data` de l'image.
+# C'est le PHP (workers) qui s'exécute non-root — pas besoin de gosu ici, sinon
+# le master www-data ne peut pas rouvrir le pipe stderr appartenant à root (EACCES).
 echo "→ Ready."
-exec gosu www-data "$@"
+exec "$@"
