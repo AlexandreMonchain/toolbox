@@ -82,11 +82,13 @@ docker compose -f compose.prod.yaml --env-file .env.docker up --build -d
 | `POSTGRES_DB` | ✅ | — | Nom de la base de données PostgreSQL |
 | `POSTGRES_USER` | ✅ | — | Utilisateur PostgreSQL |
 | `POSTGRES_PASSWORD` | ✅ | — | Mot de passe PostgreSQL |
-| `PORT` | — | `8000` | Port exposé sur l'hôte |
+| `PORT` | — | `8080` | Port exposé sur l'hôte |
 | `DEFAULT_URI` | — | `https://toolbox.alexandremonchain.fr` | URL publique de l'instance (utilisée pour les URLs absolues) |
 | `TRUSTED_PROXIES` | — | `REMOTE_ADDR` | IP du reverse proxy (ex : `10.0.0.1`). `REMOTE_ADDR` = faire confiance à la connexion directe |
+| `GIT_REPO` | ✅ | — | URL du dépôt Git à cloner au build |
 | `GIT_BRANCH` | — | `main` | Branche à cloner au build |
-| `GIT_TOKEN` | — | — | Token d'accès si dépôt privé |
+| `GIT_USERNAME` | — | — | Nom d'utilisateur Git (si dépôt privé) |
+| `GIT_TOKEN` | — | — | Token d'accès Git (si dépôt privé) |
 | `CACHE_BUST` | — | `1` | Incrémenter pour invalider le cache Docker et forcer un nouveau clone |
 
 ### Rotation de la clé de chiffrement
