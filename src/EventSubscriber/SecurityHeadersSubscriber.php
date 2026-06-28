@@ -30,6 +30,7 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
         $headers->set('X-Content-Type-Options', 'nosniff');
         $headers->set('Referrer-Policy', 'no-referrer');
         $headers->set('X-Permitted-Cross-Domain-Policies', 'none');
+        $headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
 
         // HSTS uniquement sur une connexion HTTPS effective (ignoré sinon par les navigateurs,
         // mais on évite de l'émettre en clair en dev/HTTP).
