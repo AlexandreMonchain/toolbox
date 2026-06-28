@@ -65,7 +65,7 @@ RUN printf '%s\n' \
 # Dépendances de prod uniquement
 RUN composer install \
     --no-dev \
-    --prefer-source \
+    --prefer-dist \
     --optimize-autoloader \
     --no-interaction \
     --no-scripts \
