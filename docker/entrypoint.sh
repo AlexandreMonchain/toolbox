@@ -9,6 +9,7 @@ echo "→ Starting container..."
 mkdir -p var/cache var/log var/share
 chown -R www-data:www-data var
 chmod -R ug+rwX var
+chown -R www-data:www-data /var/log/apache2
 
 # Migrations Doctrine — en www-data (/app appartient à www-data)
 echo "→ Running migrations..."
