@@ -100,6 +100,7 @@ COPY --from=builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl \
+        gosu \
         libicu72 \
         libpq5 \
         libzip4 \
@@ -107,6 +108,9 @@ RUN apt-get update \
     && echo "ServerTokens Prod" >> /etc/apache2/conf-available/security.conf \
     && echo "ServerSignature Off" >> /etc/apache2/conf-available/security.conf \
     && a2enconf security \
+    && sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+    && ln -sf /dev/stdout /var/log/apache2/access.log \
+    && ln -sf /dev/stderr /var/log/apache2/error.log \
     && rm -rf /var/lib/apt/lists/*
 
 # Config OPcache production
@@ -122,10 +126,10 @@ COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 80
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost/ || exit 1
+    CMD curl -fsS http://localhost:8080/ || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["apache2-foreground"]

@@ -28,7 +28,7 @@ services:
       MAILER_DSN: null://null
 
     ports:
-      - "${PORT:-8000}:80"
+      - "${PORT:-8000}:8080"
 
     depends_on:
       db:
