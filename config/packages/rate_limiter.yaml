@@ -8,6 +8,10 @@ framework:
             policy: sliding_window
             limit: 10
             interval: '1 minute'
+        burn_note_unlock:
+            policy: sliding_window
+            limit: 5
+            interval: '1 minute'
         csr_generate:
             policy: sliding_window
             limit: 20

@@ -22,6 +22,9 @@ class BurnNote
     #[ORM\Column(length: 32)]
     private string $nonce;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $passphraseHash = null;
+
     #[ORM\Column]
     private int $viewsRemaining;
 
@@ -50,6 +53,10 @@ class BurnNote
 
     public function getNonce(): string { return $this->nonce; }
     public function setNonce(string $nonce): static { $this->nonce = $nonce; return $this; }
+
+    public function getPassphraseHash(): ?string { return $this->passphraseHash; }
+    public function setPassphraseHash(?string $hash): static { $this->passphraseHash = $hash; return $this; }
+    public function hasPassphrase(): bool { return $this->passphraseHash !== null; }
 
     public function getViewsRemaining(): int { return $this->viewsRemaining; }
     public function setViewsRemaining(int $viewsRemaining): static { $this->viewsRemaining = $viewsRemaining; return $this; }

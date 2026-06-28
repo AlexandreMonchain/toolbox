@@ -159,6 +159,21 @@
                     </div>
                 </div>
 
+                <div class="mb-4">
+                    <label for="passphrase" class="form-label">Passphrase <span class="text-muted" style="font-weight:normal;">(optionnelle)</span></label>
+                    <input
+                        type="text"
+                        id="passphrase"
+                        name="passphrase"
+                        class="form-control font-monospace"
+                        placeholder="Laissez vide pour aucune protection"
+                        maxlength="128"
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                    <div class="form-text">Le destinataire devra saisir cette passphrase avant de pouvoir lire le secret.</div>
+                </div>
+
                 <div class="text-center">
                     <button type="submit" class="btn btn-primary btn-lg">
                         <i class="fas fa-fire" aria-hidden="true"></i> Créer le lien

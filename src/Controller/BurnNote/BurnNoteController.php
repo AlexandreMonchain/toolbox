@@ -66,9 +66,10 @@ class BurnNoteController extends AbstractController
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
-        $secret   = trim($request->request->get('secret', ''));
-        $ttl      = (int) $request->request->get('ttl', 24);
-        $maxViews = (int) $request->request->get('max_views', 1);
+        $secret     = trim($request->request->get('secret', ''));
+        $ttl        = (int) $request->request->get('ttl', 24);
+        $maxViews   = (int) $request->request->get('max_views', 1);
+        $passphrase = trim($request->request->get('passphrase', ''));
 
         if ($secret === '') {
             return $this->render('burnnote/create.html.twig', [
@@ -79,6 +80,12 @@ class BurnNoteController extends AbstractController
         if (mb_strlen($secret) > 30000) {
             return $this->render('burnnote/create.html.twig', [
                 'error' => 'Le secret ne peut pas dépasser 30 000 caractères.',
+            ]);
+        }
+
+        if (strlen($passphrase) > 128) {
+            return $this->render('burnnote/create.html.twig', [
+                'error' => 'La passphrase ne peut pas dépasser 128 caractères.',
             ]);
         }
 
@@ -96,6 +103,10 @@ class BurnNoteController extends AbstractController
         $note->setViewsRemaining($maxViews);
         $note->setExpiresAt(new \DateTimeImmutable("+{$ttl} hours"));
 
+        if ($passphrase !== '') {
+            $note->setPassphraseHash(password_hash($passphrase, PASSWORD_ARGON2ID));
+        }
+
         $em->persist($note);
         $em->flush();
 
@@ -109,8 +120,9 @@ class BurnNoteController extends AbstractController
         ]);
 
         $request->getSession()->set('burnnote_created', [
-            'url'      => $url,
-            'maxViews' => $note->getViewsRemaining(),
+            'url'          => $url,
+            'maxViews'     => $note->getViewsRemaining(),
+            'hasPassphrase' => $note->hasPassphrase(),
         ]);
 
         return $this->redirectToRoute('burnnote_created');
@@ -144,6 +156,12 @@ class BurnNoteController extends AbstractController
                 $em->flush();
             }
             return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
+        }
+
+        if ($note->hasPassphrase()) {
+            return $this->noStore($this->render('burnnote/unlock.html.twig', [
+                'token' => $token,
+            ]));
         }
 
         return $this->noStore($this->render('burnnote/preview.html.twig', [
@@ -181,6 +199,74 @@ class BurnNoteController extends AbstractController
         return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
     }
 
+    #[Route('/{token}/unlock', name: 'unlock', methods: ['POST'])]
+    public function unlock(
+        string $token,
+        Request $request,
+        BurnNoteRepository $repository,
+        EncryptionService $encryption,
+        EntityManagerInterface $em,
+        #[Target('burnNoteUnlockLimiter')] RateLimiterFactoryInterface $unlockLimiter,
+    ): Response {
+        if (!$this->isCsrfTokenValid('burnnote_unlock_' . $token, $request->request->get('_csrf_token'))) {
+            $this->securityLogger->warning('burnnote.csrf_fail', ['action' => 'unlock', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            throw $this->createAccessDeniedException('Token CSRF invalide.');
+        }
+
+        // Rate limiter indexé sur le token — borne les tentatives même depuis plusieurs IPs
+        $limiter = $unlockLimiter->create('bn_unlock_' . $token);
+        if (!$limiter->consume(1)->isAccepted()) {
+            $this->securityLogger->warning('burnnote.unlock_rate_limit', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            return $this->noStore($this->render('burnnote/unlock.html.twig', [
+                'token' => $token,
+                'error' => 'Trop de tentatives. Réessayez dans une minute.',
+            ], new Response('', Response::HTTP_TOO_MANY_REQUESTS)));
+        }
+
+        $note = $repository->findOneBy(['token' => $token]);
+
+        if (!$note || !$note->isAccessible()) {
+            if ($note) { $em->remove($note); $em->flush(); }
+            return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
+        }
+
+        if (!password_verify($request->request->get('passphrase', ''), $note->getPassphraseHash() ?? '')) {
+            $this->securityLogger->warning('burnnote.unlock_failed', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            return $this->noStore($this->render('burnnote/unlock.html.twig', [
+                'token' => $token,
+                'error' => 'Passphrase incorrecte.',
+            ]));
+        }
+
+        // Passphrase valide : consommer la vue et révéler
+        $note = $repository->consumeView($token);
+        if (!$note) {
+            $this->securityLogger->warning('burnnote.reveal_expired', ['ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
+            return $this->render('burnnote/expired.html.twig', [], new Response('', Response::HTTP_GONE));
+        }
+
+        $secret = $encryption->decrypt($note->getPayload(), $note->getNonce());
+
+        $this->securityLogger->info('burnnote.revealed', [
+            'ip'             => $request->getClientIp(),
+            'token'          => substr($token, 0, 8),
+            'viewsRemaining' => $note->getViewsRemaining(),
+            'via'            => 'unlock',
+        ]);
+
+        if ($note->getViewsRemaining() <= 0) {
+            $em->remove($note);
+            $em->flush();
+        }
+
+        return $this->noStore($this->render('burnnote/show.html.twig', [
+            'secret'         => $secret,
+            'viewsRemaining' => $note->getViewsRemaining(),
+            'expiresAt'      => $note->getExpiresAt(),
+            'token'          => $token,
+        ]));
+    }
+
     #[Route('/{token}', name: 'reveal', methods: ['POST'])]
     public function reveal(
         string $token,
@@ -197,6 +283,14 @@ class BurnNoteController extends AbstractController
         if (!$this->isCsrfTokenValid('burnnote_reveal', $request->request->get('_csrf_token'))) {
             $this->securityLogger->warning('burnnote.csrf_fail', ['action' => 'reveal', 'ip' => $request->getClientIp(), 'token' => substr($token, 0, 8)]);
             throw $this->createAccessDeniedException('Token CSRF invalide.');
+        }
+
+        // Note protégée par passphrase : passer par /unlock
+        $rawNote = $repository->findOneBy(['token' => $token]);
+        if ($rawNote && $rawNote->hasPassphrase()) {
+            return $this->noStore($this->render('burnnote/unlock.html.twig', [
+                'token' => $token,
+            ]));
         }
 
         // UPDATE atomique — garantit qu'une seule requête concurrente obtient la vue
