@@ -1,0 +1,378 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Minuteur d'incident — Toolbox{% endblock %}
+{% block og_title %}Minuteur d'incident — Toolbox{% endblock %}
+{% block og_description %}Chronométrez vos incidents, consignez les événements avec horodatage et exportez la timeline en texte.{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">🚨</div>
+    <h1 class="hero-title">Minuteur d'incident</h1>
+    <p class="hero-subtitle">Chronométrez, consignez les événements, exportez la timeline. Persiste si vous rechargez la page.</p>
+</section>
+
+<div class="container" style="max-width:640px;">
+
+    {# ── Timer ─────────────────────────────────────────────────────────── #}
+    <div class="card-modern mb-3 text-center">
+
+        <div class="inc-timer" id="inc-display" aria-live="polite" aria-label="Durée de l'incident">
+            00:00:00
+        </div>
+
+        <div id="inc-startline" style="font-size:0.78rem; color:var(--color-text-secondary); margin-bottom:1.25rem; min-height:1.1rem;"></div>
+
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <button class="btn btn-lg btn-primary" id="inc-start">
+                <i class="fas fa-play" aria-hidden="true"></i> Démarrer
+            </button>
+            <button class="btn btn-lg btn-outline-secondary" id="inc-pause" disabled>
+                <i class="fas fa-pause" aria-hidden="true"></i> Pause
+            </button>
+            <button class="btn btn-lg btn-outline-danger" id="inc-reset" disabled>
+                <i class="fas fa-stop" aria-hidden="true"></i> Terminer
+            </button>
+        </div>
+
+    </div>
+
+    {# ── Ajouter un événement ──────────────────────────────────────────── #}
+    <div class="card-modern mb-3" id="inc-event-form" style="display:none;">
+        <h2 class="card-title" style="margin-bottom:0.75rem;">
+            <i class="fas fa-plus-circle fa-fw" aria-hidden="true"></i>
+            Ajouter un événement
+        </h2>
+        <div class="d-flex gap-2">
+            <input type="text" id="inc-event-text" class="form-control"
+                   placeholder="Ex : Alerte reçue, coupure réseau…" maxlength="300"
+                   autocomplete="off">
+            <button class="btn btn-primary flex-shrink-0" id="inc-event-add">
+                <i class="fas fa-plus" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+
+    {# ── Timeline ──────────────────────────────────────────────────────── #}
+    <div class="card-modern" id="inc-timeline-card" style="display:none;">
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <h2 class="card-title" style="margin:0;">
+                <i class="fas fa-list-ul fa-fw" aria-hidden="true"></i>
+                Timeline
+            </h2>
+            <button class="btn btn-sm btn-outline-secondary" id="inc-copy-timeline">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+        </div>
+        <ol id="inc-events" class="inc-events-list" aria-live="polite"></ol>
+    </div>
+
+</div>
+
+{# ── Modal confirmation reset ──────────────────────────────────────────── #}
+<div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-hover);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="resetModalLabel" style="color: var(--color-text-primary);">
+                    <i class="fas fa-stop text-danger" aria-hidden="true"></i> Terminer l'incident
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body" style="color: var(--color-text-secondary);">
+                Terminer l'incident et réinitialiser le minuteur ? La timeline sera perdue.
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="inc-reset-confirm">
+                    <i class="fas fa-stop" aria-hidden="true"></i> Terminer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style nonce="{{ csp_nonce() }}">
+.inc-timer {
+    font-family: monospace;
+    font-size: 4rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--color-primary);
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+}
+.inc-timer.running { color: var(--color-primary); }
+.inc-timer.paused  { color: var(--color-text-secondary); }
+.inc-timer.stopped { color: var(--color-text-secondary); }
+.inc-events-list {
+    list-style: none;
+    padding: 0; margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.inc-event-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: var(--color-bg-page);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.6rem 0.875rem;
+    position: relative;
+}
+.inc-event-item.is-start { border-color: var(--color-primary); background: var(--color-primary-light); }
+.inc-event-time {
+    flex-shrink: 0;
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    min-width: 100px;
+}
+.inc-event-elapsed {
+    font-size: 0.72rem;
+    color: var(--color-primary);
+    font-weight: 600;
+}
+.inc-event-text { font-size: 0.9rem; flex: 1; word-break: break-word; }
+.inc-event-del {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0 0.25rem;
+    font-size: 0.8rem;
+    opacity: 0.4;
+    flex-shrink: 0;
+}
+.inc-event-del:hover { opacity: 1; color: var(--color-danger, #991B1B); }
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+
+const LS_KEY = 'toolbox_incident_v1';
+
+let state = {
+    status: 'idle',    // idle | running | paused
+    startEpoch: null,  // ms, when timer started
+    elapsedOnPause: 0, // ms accumulated before last pause
+    events: [],        // [{epochMs, text}]
+};
+
+let rafId = null;
+
+/* ── Persistence ─────────────────────────────────────────────────────── */
+function save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(_) {}
+}
+
+function load() {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data && data.status) state = data;
+    } catch(_) {}
+}
+
+/* ── Elapsed ─────────────────────────────────────────────────────────── */
+function getElapsedMs() {
+    if (state.status === 'running') {
+        return state.elapsedOnPause + (Date.now() - state.startEpoch);
+    }
+    return state.elapsedOnPause;
+}
+
+function fmtMs(ms) {
+    const s  = Math.floor(ms / 1000);
+    const h  = Math.floor(s / 3600);
+    const m  = Math.floor((s % 3600) / 60);
+    const sc = s % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
+}
+
+function fmtEpoch(epochMs) {
+    return new Date(epochMs).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function fmtEpochFull(epochMs) {
+    return new Date(epochMs).toLocaleString('fr-FR', {
+        year:'numeric', month:'2-digit', day:'2-digit',
+        hour:'2-digit', minute:'2-digit', second:'2-digit'
+    });
+}
+
+function fmtElapsedShort(ms) {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `+${s}s`;
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    return `+${m}min${rs > 0 ? String(rs).padStart(2,'0') + 's' : ''}`;
+}
+
+/* ── DOM update ──────────────────────────────────────────────────────── */
+function tick() {
+    document.getElementById('inc-display').textContent = fmtMs(getElapsedMs());
+    if (state.status === 'running') rafId = requestAnimationFrame(tick);
+}
+
+function renderButtons() {
+    const s      = state.status;
+    const btnS   = document.getElementById('inc-start');
+    const btnP   = document.getElementById('inc-pause');
+    const btnR   = document.getElementById('inc-reset');
+    const disp   = document.getElementById('inc-display');
+
+    if (s === 'idle') {
+        btnS.disabled = false; btnS.innerHTML = '<i class="fas fa-play" aria-hidden="true"></i> Démarrer';
+        btnP.disabled = true;
+        btnR.disabled = true;
+        disp.className = 'inc-timer';
+    } else if (s === 'running') {
+        btnS.disabled = true;
+        btnP.disabled = false; btnP.innerHTML = '<i class="fas fa-pause" aria-hidden="true"></i> Pause';
+        btnR.disabled = false;
+        disp.className = 'inc-timer running';
+    } else if (s === 'paused') {
+        btnS.disabled = false; btnS.innerHTML = '<i class="fas fa-play" aria-hidden="true"></i> Reprendre';
+        btnP.disabled = true;
+        btnR.disabled = false;
+        disp.className = 'inc-timer paused';
+    }
+
+    const sl = document.getElementById('inc-startline');
+    if (s !== 'idle' && state.events.length > 0) {
+        sl.textContent = `Incident démarré le ${fmtEpochFull(state.events[0].epochMs)}`;
+    } else {
+        sl.textContent = '';
+    }
+
+    const hasStarted = s !== 'idle' || state.events.length > 0;
+    document.getElementById('inc-event-form').style.display     = (s === 'running' || s === 'paused') ? '' : 'none';
+    document.getElementById('inc-timeline-card').style.display  = state.events.length > 0 ? '' : 'none';
+}
+
+function renderEvents() {
+    const ol = document.getElementById('inc-events');
+    ol.innerHTML = '';
+
+    const startEpoch = state.events.length > 0 ? state.events[0].epochMs : Date.now();
+
+    state.events.forEach((ev, idx) => {
+        const li = document.createElement('li');
+        li.className = 'inc-event-item' + (idx === 0 ? ' is-start' : '');
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'inc-event-time';
+        const t = document.createElement('div');
+        t.textContent = fmtEpoch(ev.epochMs);
+        const e = document.createElement('div');
+        e.className = 'inc-event-elapsed';
+        e.textContent = idx === 0 ? 'Début' : fmtElapsedShort(ev.epochMs - startEpoch);
+        timeDiv.appendChild(t);
+        timeDiv.appendChild(e);
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'inc-event-text';
+        textDiv.textContent = ev.text;
+
+        const del = document.createElement('button');
+        del.className = 'inc-event-del';
+        del.title = 'Supprimer';
+        del.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+        del.addEventListener('click', () => {
+            state.events.splice(idx, 1);
+            save(); renderEvents(); renderButtons();
+        });
+
+        li.appendChild(timeDiv);
+        li.appendChild(textDiv);
+        if (idx > 0) li.appendChild(del);
+        ol.appendChild(li);
+    });
+}
+
+function fullRender() {
+    renderButtons();
+    renderEvents();
+    document.getElementById('inc-display').textContent = fmtMs(getElapsedMs());
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────── */
+document.getElementById('inc-start').addEventListener('click', () => {
+    if (state.status === 'idle') {
+        // First start: add automatic "Incident démarré" event
+        state.events = [{ epochMs: Date.now(), text: 'Incident démarré' }];
+    }
+    state.status     = 'running';
+    state.startEpoch = Date.now();
+    save();
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+    fullRender();
+});
+
+document.getElementById('inc-pause').addEventListener('click', () => {
+    state.elapsedOnPause += Date.now() - state.startEpoch;
+    state.startEpoch      = null;
+    state.status          = 'paused';
+    cancelAnimationFrame(rafId);
+    save(); fullRender();
+});
+
+document.getElementById('inc-reset').addEventListener('click', () => {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('resetModal')).show();
+});
+
+document.getElementById('inc-reset-confirm').addEventListener('click', () => {
+    bootstrap.Modal.getInstance(document.getElementById('resetModal')).hide();
+    cancelAnimationFrame(rafId);
+    localStorage.removeItem(LS_KEY);
+    state = { status: 'idle', startEpoch: null, elapsedOnPause: 0, events: [] };
+    fullRender();
+});
+
+document.getElementById('inc-event-add').addEventListener('click', addEvent);
+document.getElementById('inc-event-text').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addEvent();
+});
+
+function addEvent() {
+    const inp  = document.getElementById('inc-event-text');
+    const text = inp.value.trim();
+    if (!text) return;
+    state.events.push({ epochMs: Date.now(), text });
+    inp.value = '';
+    save(); renderEvents(); renderButtons();
+}
+
+/* ── Copy timeline ───────────────────────────────────────────────────── */
+document.getElementById('inc-copy-timeline').addEventListener('click', () => {
+    if (state.events.length === 0) return;
+    const startEpoch = state.events[0].epochMs;
+    const lines = [`=== Incident — ${fmtEpochFull(startEpoch)} ===`, ''];
+    state.events.forEach((ev, idx) => {
+        const elapsed = idx === 0 ? 'Début' : fmtElapsedShort(ev.epochMs - startEpoch);
+        lines.push(`[${fmtEpoch(ev.epochMs)}] (${elapsed}) ${ev.text}`);
+    });
+    const totalMs = getElapsedMs();
+    lines.push('', `Durée totale : ${fmtMs(totalMs)}`);
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        const btn = document.getElementById('inc-copy-timeline');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> Copié !';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    }).catch(() => {});
+});
+
+/* ── Init ────────────────────────────────────────────────────────────── */
+load();
+fullRender();
+if (state.status === 'running') {
+    rafId = requestAnimationFrame(tick);
+}
+
+})();
+</script>
+{% endblock %}

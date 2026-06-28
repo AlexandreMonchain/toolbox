@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noindex">
+        <title>Erreur serveur — Toolbox</title>
+        <script nonce="{{ csp_nonce() }}">(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="/assets/app.css">
+        <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    </head>
+    <body>
+        <nav class="navbar-modern">
+            <div class="nav-container">
+                <a class="nav-logo" href="/">
+                    <img src="/assets/favicon.svg" width="26" height="26" alt=""> Toolbox
+                </a>
+            </div>
+        </nav>
+
+        <main class="main-content d-flex align-items-center justify-content-center">
+            <div class="text-center" style="max-width: 480px; padding: 2rem;">
+                <div style="font-size: 5rem; line-height: 1; margin-bottom: 1rem;">⚙️</div>
+                <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: 0.75rem;">Erreur serveur</h1>
+                <p style="color: var(--color-text-secondary); margin-bottom: 2rem;">
+                    Une erreur inattendue s'est produite.
+                </p>
+                <a href="/" class="btn btn-primary">
+                    Retour à l'accueil
+                </a>
+            </div>
+        </main>
+
+        <footer class="footer-modern">
+            <div class="footer-container">
+                <div class="footer-content">
+                    <p class="footer-text">
+                        <strong>Toolbox</strong> • © 2026 <a href="https://alexandremonchain.fr" target="_blank" rel="noopener">Alexandre MONCHAIN</a>
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

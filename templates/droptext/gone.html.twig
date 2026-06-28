@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Note détruite — DropText{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">🔥</div>
+    {% if manually_burned is defined and manually_burned %}
+        <h1 class="hero-title">Note détruite</h1>
+        <p class="hero-subtitle">La note a été brûlée manuellement et supprimée définitivement.</p>
+    {% else %}
+        <h1 class="hero-title">Note introuvable</h1>
+        <p class="hero-subtitle">Cette note n'existe pas, a expiré ou a été détruite après lecture.</p>
+    {% endif %}
+</section>
+
+<div class="container text-center" style="max-width:480px;">
+    <a href="{{ path('droptext_index') }}" class="btn btn-primary">
+        <i class="fas fa-plus" aria-hidden="true"></i> Créer une nouvelle note
+    </a>
+</div>
+{% endblock %}

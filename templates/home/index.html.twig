@@ -1,0 +1,159 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Toolbox — Outils pour RSI & sysadmins{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">🧰</div>
+        <h1 class="hero-title">Toolbox</h1>
+        <p class="hero-subtitle">Boîte à outils open source pour RSI et sysadmins. Simple, sécurisée, hébergée.</p>
+    </section>
+
+    {# ── Outils mis en avant ─────────────────────────────────────────────── #}
+    <div class="tools-featured">
+
+        <a href="https://passphrase.fr" target="_blank" rel="noopener noreferrer" class="tool-card">
+            <div class="tool-card-icon purple">
+                <i class="fas fa-key" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">
+                Passphrase.fr
+                <i class="fas fa-arrow-up-right-from-square" aria-hidden="true" style="font-size:0.65em; opacity:0.45; margin-left:4px;"></i>
+            </p>
+            <p class="tool-card-desc">Générateur de passphrases mémorables en français. Intégré dans BurnNote et DropText pour créer des secrets robustes.</p>
+            <span class="tool-card-badge badge-external">Ressource externe</span>
+        </a>
+
+        <a href="{{ path('burnnote_index') }}" class="tool-card">
+            <div class="tool-card-icon purple">
+                <i class="fas fa-fire" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">BurnNote</p>
+            <p class="tool-card-desc">Partagez un secret chiffré via un lien à usage unique. Le message s'autodétruit après lecture ou expiration du TTL.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+    </div>
+
+    {# ── Grille principale ───────────────────────────────────────────────── #}
+    <div class="tools-grid">
+
+        <a href="{{ path('droptext_index') }}" class="tool-card">
+            <div class="tool-card-icon amber">
+                <i class="fas fa-paste" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">DropText</p>
+            <p class="tool-card-desc">Partagez un texte ou script chiffré. Passphrase, burn après X lectures, TTL jusqu'à 7 jours, coloration syntaxique.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('diff_index') }}" class="tool-card">
+            <div class="tool-card-icon green">
+                <i class="fas fa-code-compare" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Comparateur de texte</p>
+            <p class="tool-card-desc">Comparez deux textes et visualisez les différences ligne par ligne, style git diff. Ignore espaces et casse.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('percentage_index') }}" class="tool-card">
+            <div class="tool-card-icon blue">
+                <i class="fas fa-percent" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Calculateur de %</p>
+            <p class="tool-card-desc">Variation entre deux valeurs, application d'un pourcentage, proportion. Calcul instantané, sans serveur.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('csr_index') }}" class="tool-card">
+            <div class="tool-card-icon teal">
+                <i class="fas fa-certificate" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Générateur CSR</p>
+            <p class="tool-card-desc">Générez vos CSR pour certificats TLS avec SANs. RSA 2048, SHA-256. La clé privée n'est jamais stockée.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('qrcode_index') }}" class="tool-card">
+            <div class="tool-card-icon red">
+                <i class="fas fa-qrcode" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Générateur de QR code</p>
+            <p class="tool-card-desc">Générez des QR codes pour URL, texte, Wi-Fi et fiche contact vCard. Génération locale, aucune donnée envoyée.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('keyboard_index') }}" class="tool-card">
+            <div class="tool-card-icon orange">
+                <i class="fas fa-keyboard" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Testeur de clavier</p>
+            <p class="tool-card-desc">Vérifiez que chaque touche de votre clavier fonctionne. Layout AZERTY / QWERTY, compteur de touches testées.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('subnet_index') }}" class="tool-card">
+            <div class="tool-card-icon blue">
+                <i class="fas fa-network-wired" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Sous-réseaux IP</p>
+            <p class="tool-card-desc">Calculez plages réseau, masques, wildcard ACL, découpe en sous-réseaux et visualisation binaire.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('converter_index') }}" class="tool-card">
+            <div class="tool-card-icon teal">
+                <i class="fas fa-right-left" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Convertisseur bits/octets</p>
+            <p class="tool-card-desc">Convertissez bits, octets, Ko/Mo/Go/To (SI) et Kio/Mio/Gio/Tio (IEC). Copie en un clic.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('secret_index') }}" class="tool-card">
+            <div class="tool-card-icon red">
+                <i class="fas fa-shield-halved" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Générateur de secrets</p>
+            <p class="tool-card-desc">Mots de passe, tokens hex, UUID v4, clés base64url. 100 % local, <code>crypto.getRandomValues</code>.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('cron_index') }}" class="tool-card">
+            <div class="tool-card-icon gray">
+                <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Éditeur de cron</p>
+            <p class="tool-card-desc">Composez vos expressions cron avec un builder visuel, traduction en français et prochaines exécutions.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('incident_index') }}" class="tool-card">
+            <div class="tool-card-icon orange">
+                <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Minuteur d'incident</p>
+            <p class="tool-card-desc">Chronométrez vos incidents, consignez les événements avec horodatage et exportez la timeline.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('cmdgen_index') }}" class="tool-card">
+            <div class="tool-card-icon amber">
+                <i class="fas fa-terminal" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Générateur de commandes</p>
+            <p class="tool-card-desc">Générez des commandes openssl, ssh, curl, tar, rsync, systemctl, find à partir de formulaires guidés.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+        <a href="{{ path('base64_index') }}" class="tool-card">
+            <div class="tool-card-icon purple">
+                <i class="fas fa-code" aria-hidden="true"></i>
+            </div>
+            <p class="tool-card-name">Convertisseur Base64</p>
+            <p class="tool-card-desc">Encodez et décodez du Base64 bidirectionnel. Standard ou URL-safe, support UTF-8 complet. 100 % local.</p>
+            <span class="tool-card-badge badge-available">Disponible</span>
+        </a>
+
+    </div>
+{% endblock %}

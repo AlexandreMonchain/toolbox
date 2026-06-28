@@ -1,0 +1,678 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Générateur de commandes — Toolbox{% endblock %}
+{% block og_title %}Générateur de commandes — Toolbox{% endblock %}
+{% block og_description %}Générez des commandes openssl, ssh, curl, tar, rsync, systemctl, find à partir de formulaires. Copiez et collez.{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">⌨</div>
+    <h1 class="hero-title">Générateur de commandes</h1>
+    <p class="hero-subtitle">openssl · ssh · curl · tar · rsync · systemctl · find — renseignez les paramètres, copiez la commande.</p>
+</section>
+
+<div style="max-width:900px; margin:0 auto; padding: 0 1rem 2rem;">
+
+    <div id="cmd-cats" class="cmd-cats mb-3"></div>
+
+    <div class="card-modern">
+        <div class="d-flex gap-3 align-items-end flex-wrap mb-3">
+            <div style="flex:1; min-width:220px;">
+                <label class="form-label" for="cmd-sub" style="font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--color-text-secondary);">Opération</label>
+                <select id="cmd-sub" class="form-select"></select>
+            </div>
+        </div>
+        <p id="cmd-desc" style="font-size:0.875rem; color:var(--color-text-secondary); margin-bottom:1.25rem; min-height:1.2rem;"></p>
+
+        <div id="cmd-form" class="row g-3 mb-4"></div>
+
+        <div>
+            <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--color-text-secondary); margin-bottom:0.4rem;">
+                Commande générée
+            </div>
+            <div class="position-relative">
+                <pre id="cmd-output" class="cmd-output" aria-live="polite">—</pre>
+                <button class="cmd-copy-btn" id="cmd-copy" title="Copier">
+                    <i class="fas fa-copy" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style nonce="{{ csp_nonce() }}">
+.cmd-cats { display:flex; flex-wrap:wrap; gap:0.4rem; }
+.cmd-cat-btn {
+    padding: 0.4rem 0.9rem;
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.cmd-cat-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.cmd-cat-btn.active {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    font-weight: 600;
+}
+.cmd-output {
+    background: #0f1117;
+    color: #a5f3fc;
+    border-radius: 10px;
+    padding: 1rem 3.5rem 1rem 1.1rem;
+    font-family: monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    min-height: 54px;
+    margin: 0;
+    border: 1px solid #1e293b;
+}
+[data-theme="dark"] .cmd-output { background: #060810; border-color: #1e293b; }
+.cmd-copy-btn {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.65rem;
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 6px;
+    color: #94a3b8;
+    padding: 0.3rem 0.55rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 150ms, color 150ms;
+}
+.cmd-copy-btn:hover { background: rgba(255,255,255,0.16); color: #e2e8f0; }
+.cmd-hint { font-size: 0.73rem; color: var(--color-text-secondary); margin-top: 0.2rem; }
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+
+/* ── Command definitions ────────────────────────────────────────────────────── */
+const q = (v, fallback) => (v && String(v).trim()) ? String(v).trim() : fallback;
+const flag = (v, f) => v ? ' ' + f : '';
+const opt = (v, f, fallback) => { const val = q(v, fallback); return val ? ` ${f} ${val}` : ''; };
+
+const CMDS = {
+
+  openssl: {
+    label: 'OpenSSL',
+    icon: 'fa-certificate',
+    subs: {
+      genrsa: {
+        label: 'Générer une clé privée RSA',
+        desc: 'Crée un fichier de clé privée RSA au format PEM.',
+        fields: [
+          { id:'file',       label:'Fichier de sortie', type:'text',     def:'key.pem',  ph:'key.pem' },
+          { id:'bits',       label:'Taille',            type:'select',   def:'4096',     opts:[{v:'2048',l:'2048 bits'},{v:'4096',l:'4096 bits (recommandé)'}] },
+          { id:'passphrase', label:'Protéger par passphrase (AES-256)',  type:'checkbox', def:false },
+        ],
+        build: v => `openssl genrsa${v.passphrase?' -aes256':''} -out ${q(v.file,'key.pem')} ${q(v.bits,'4096')}`,
+      },
+      selfsign: {
+        label: 'Certificat auto-signé',
+        desc: 'Génère une clé privée et un certificat auto-signé en une commande (dev/tests).',
+        fields: [
+          { id:'keyfile',  label:'Fichier clé',      type:'text',   def:'key.pem',   ph:'key.pem' },
+          { id:'certfile', label:'Fichier cert',      type:'text',   def:'cert.pem',  ph:'cert.pem' },
+          { id:'cn',       label:'Common Name (CN)',  type:'text',   def:'',          ph:'example.com' },
+          { id:'days',     label:'Durée (jours)',     type:'number', def:'365',       ph:'365' },
+          { id:'bits',     label:'Taille de clé',     type:'select', def:'4096',      opts:[{v:'2048',l:'2048 bits'},{v:'4096',l:'4096 bits'}] },
+        ],
+        build: v => {
+          const subj = `/CN=${q(v.cn,'example.com')}`;
+          return `openssl req -x509 -newkey rsa:${q(v.bits,'4096')} -keyout ${q(v.keyfile,'key.pem')} -out ${q(v.certfile,'cert.pem')} -sha256 -days ${q(v.days,'365')} -nodes -subj "${subj}"`;
+        },
+      },
+      showcert: {
+        label: 'Lire un certificat',
+        desc: 'Affiche le contenu complet d\'un certificat PEM (sujet, SANs, dates…).',
+        fields: [
+          { id:'file', label:'Fichier cert', type:'text', def:'cert.pem', ph:'cert.pem' },
+        ],
+        build: v => `openssl x509 -in ${q(v.file,'cert.pem')} -text -noout`,
+      },
+      checkexpiry: {
+        label: 'Date d\'expiration d\'un certificat',
+        desc: 'Affiche uniquement les dates de validité du certificat.',
+        fields: [
+          { id:'file', label:'Fichier cert', type:'text', def:'cert.pem', ph:'cert.pem' },
+        ],
+        build: v => `openssl x509 -in ${q(v.file,'cert.pem')} -noout -enddate`,
+      },
+      livecheck: {
+        label: 'Vérifier le cert d\'un serveur live',
+        desc: 'Se connecte au serveur et affiche les dates de validité du certificat TLS.',
+        fields: [
+          { id:'host', label:'Hôte',  type:'text',   def:'',    ph:'example.com' },
+          { id:'port', label:'Port',  type:'number', def:'443', ph:'443' },
+        ],
+        build: v => {
+          const h = q(v.host,'example.com'); const p = q(v.port,'443');
+          return `openssl s_client -connect ${h}:${p} -servername ${h} </dev/null 2>/dev/null | openssl x509 -noout -dates`;
+        },
+      },
+      matchkeycert: {
+        label: 'Vérifier concordance clé ↔ certificat',
+        desc: 'Compare les moduli MD5 de la clé et du certificat — doivent être identiques.',
+        fields: [
+          { id:'key',  label:'Fichier clé',  type:'text', def:'key.pem',  ph:'key.pem' },
+          { id:'cert', label:'Fichier cert', type:'text', def:'cert.pem', ph:'cert.pem' },
+        ],
+        build: v => `echo "=== Cert ===" && openssl x509 -noout -modulus -in ${q(v.cert,'cert.pem')} | md5sum && echo "=== Clé ===" && openssl rsa -noout -modulus -in ${q(v.key,'key.pem')} | md5sum`,
+      },
+    },
+  },
+
+  ssh: {
+    label: 'SSH / SCP',
+    icon: 'fa-terminal',
+    subs: {
+      keygen: {
+        label: 'Générer une paire de clés',
+        desc: 'Crée une paire de clés SSH. Ed25519 est recommandé pour les nouvelles installations.',
+        fields: [
+          { id:'type',    label:'Algorithme',      type:'select', def:'ed25519', opts:[{v:'ed25519',l:'Ed25519 (recommandé)'},{v:'rsa',l:'RSA'},{v:'ecdsa',l:'ECDSA'}] },
+          { id:'bits',    label:'Taille (RSA)',     type:'select', def:'4096',   opts:[{v:'2048',l:'2048 bits'},{v:'4096',l:'4096 bits'}], hint:'Ignoré pour Ed25519/ECDSA' },
+          { id:'comment', label:'Commentaire (-C)', type:'text',   def:'',       ph:'user@machine' },
+          { id:'file',    label:'Fichier de sortie',type:'text',   def:'',       ph:'~/.ssh/id_ed25519' },
+        ],
+        build: v => {
+          const type = q(v.type,'ed25519');
+          const bits = type === 'rsa' ? ` -b ${q(v.bits,'4096')}` : '';
+          const comment = v.comment ? ` -C "${q(v.comment,'')}"` : '';
+          const file = v.file ? ` -f ${q(v.file,'')}` : '';
+          return `ssh-keygen -t ${type}${bits}${comment}${file}`;
+        },
+      },
+      copyid: {
+        label: 'Déployer la clé publique',
+        desc: 'Copie la clé publique dans ~/.ssh/authorized_keys sur le serveur distant.',
+        fields: [
+          { id:'keyfile', label:'Fichier clé publique', type:'text',   def:'~/.ssh/id_ed25519.pub', ph:'~/.ssh/id_ed25519.pub' },
+          { id:'user',    label:'Utilisateur distant',  type:'text',   def:'',                      ph:'admin' },
+          { id:'host',    label:'Hôte distant',         type:'text',   def:'',                      ph:'server.local' },
+          { id:'port',    label:'Port SSH',             type:'number', def:'22',                    ph:'22' },
+        ],
+        build: v => {
+          const port = q(v.port,'22') !== '22' ? ` -p ${q(v.port,'22')}` : '';
+          return `ssh-copy-id -i ${q(v.keyfile,'~/.ssh/id_ed25519.pub')}${port} ${q(v.user,'user')}@${q(v.host,'server')}`;
+        },
+      },
+      scp: {
+        label: 'Copier des fichiers (SCP)',
+        desc: 'Transfère des fichiers ou répertoires via SSH.',
+        fields: [
+          { id:'src',       label:'Source',                type:'text',     def:'',    ph:'/local/path ou user@host:/remote/path' },
+          { id:'dest',      label:'Destination',           type:'text',     def:'',    ph:'user@host:/remote/path ou /local/path' },
+          { id:'port',      label:'Port SSH',              type:'number',   def:'22',  ph:'22' },
+          { id:'recursive', label:'Récursif (-r)',         type:'checkbox', def:false },
+          { id:'identity',  label:'Clé privée (-i)',       type:'text',     def:'',    ph:'~/.ssh/id_ed25519' },
+        ],
+        build: v => {
+          const port = q(v.port,'22') !== '22' ? ` -P ${q(v.port,'')}` : '';
+          const rec  = v.recursive ? ' -r' : '';
+          const id   = v.identity ? ` -i ${q(v.identity,'')}` : '';
+          return `scp${port}${rec}${id} ${q(v.src,'/source')} ${q(v.dest,'user@host:/dest')}`;
+        },
+      },
+      tunnel: {
+        label: 'Tunnel SSH (Local Forward)',
+        desc: 'Redirige un port local vers un service interne via un bastion SSH.',
+        fields: [
+          { id:'localport',  label:'Port local',           type:'number', def:'8080', ph:'8080' },
+          { id:'targethost', label:'Hôte cible (interne)', type:'text',   def:'',     ph:'internal-server' },
+          { id:'targetport', label:'Port cible',           type:'number', def:'80',   ph:'80' },
+          { id:'user',       label:'Utilisateur bastion',  type:'text',   def:'',     ph:'admin' },
+          { id:'bastion',    label:'Hôte bastion',         type:'text',   def:'',     ph:'bastion.example.com' },
+          { id:'background', label:'Arrière-plan (-fN)',   type:'checkbox', def:false, hint:'Utile pour un tunnel permanent' },
+        ],
+        build: v => {
+          const bg = v.background ? ' -fN' : '';
+          return `ssh -L ${q(v.localport,'8080')}:${q(v.targethost,'internal')}:${q(v.targetport,'80')} ${q(v.user,'user')}@${q(v.bastion,'bastion.example.com')}${bg}`;
+        },
+      },
+    },
+  },
+
+  curl: {
+    label: 'curl',
+    icon: 'fa-arrow-right-arrow-left',
+    subs: {
+      get: {
+        label: 'Requête GET',
+        desc: 'Envoie une requête HTTP GET. Supporte authentification Bearer/Basic et headers personnalisés.',
+        fields: [
+          { id:'url',      label:'URL',                  type:'text',   def:'',     ph:'https://api.example.com/resource', wide:true },
+          { id:'auth',     label:'Authentification',     type:'select', def:'none', opts:[{v:'none',l:'Aucune'},{v:'bearer',l:'Bearer token'},{v:'basic',l:'Basic (user:pass)'}] },
+          { id:'token',    label:'Token / user:password',type:'text',   def:'',     ph:'TOKEN ou user:password' },
+          { id:'headers',  label:'Headers supplémentaires (un par ligne)', type:'textarea', def:'', ph:'X-Custom-Header: value', wide:true },
+          { id:'follow',   label:'Suivre les redirections (-L)',   type:'checkbox', def:true },
+          { id:'verbose',  label:'Verbose (-v)',                   type:'checkbox', def:false },
+          { id:'insecure', label:'Ignorer erreurs TLS (-k)',       type:'checkbox', def:false, hint:'⚠ À éviter en production' },
+          { id:'outfile',  label:'Sauvegarder dans un fichier (-o)', type:'text', def:'', ph:'response.json' },
+        ],
+        build: v => {
+          let cmd = 'curl';
+          if (v.follow)   cmd += ' -L';
+          if (v.verbose)  cmd += ' -v';
+          if (v.insecure) cmd += ' -k';
+          if (v.auth === 'bearer' && v.token) cmd += ` -H "Authorization: Bearer ${q(v.token,'TOKEN')}"`;
+          if (v.auth === 'basic'  && v.token) cmd += ` -u "${q(v.token,'user:pass')}"`;
+          const hdrs = (v.headers||'').split('\n').filter(h=>h.trim());
+          hdrs.forEach(h => { cmd += ` -H "${h.trim()}"`; });
+          if (v.outfile) cmd += ` -o ${q(v.outfile,'')}`;
+          cmd += ` "${q(v.url,'https://api.example.com')}"`;
+          return cmd;
+        },
+      },
+      post: {
+        label: 'Requête POST JSON',
+        desc: 'Envoie du JSON en POST. Content-Type: application/json est ajouté automatiquement.',
+        fields: [
+          { id:'url',  label:'URL',              type:'text',     def:'',   ph:'https://api.example.com/endpoint', wide:true },
+          { id:'data', label:'Corps JSON',        type:'textarea', def:'{}', ph:'{"key": "value"}', wide:true },
+          { id:'auth', label:'Authentification', type:'select',   def:'none', opts:[{v:'none',l:'Aucune'},{v:'bearer',l:'Bearer token'},{v:'basic',l:'Basic'}] },
+          { id:'token', label:'Token / user:pass', type:'text',   def:'', ph:'TOKEN' },
+          { id:'verbose', label:'Verbose (-v)',    type:'checkbox', def:false },
+          { id:'insecure', label:'Ignorer TLS (-k)', type:'checkbox', def:false },
+        ],
+        build: v => {
+          let cmd = `curl -X POST -H "Content-Type: application/json"`;
+          if (v.auth === 'bearer' && v.token) cmd += ` -H "Authorization: Bearer ${q(v.token,'TOKEN')}"`;
+          if (v.auth === 'basic'  && v.token) cmd += ` -u "${q(v.token,'user:pass')}"`;
+          if (v.verbose)  cmd += ' -v';
+          if (v.insecure) cmd += ' -k';
+          const data = q(v.data,'{}').replace(/'/g, "'\\''");
+          cmd += ` -d '${data}'`;
+          cmd += ` "${q(v.url,'https://api.example.com/endpoint')}"`;
+          return cmd;
+        },
+      },
+      download: {
+        label: 'Télécharger un fichier',
+        desc: 'Télécharge un fichier avec barre de progression. Supporte la reprise.',
+        fields: [
+          { id:'url',     label:'URL',                    type:'text', def:'', ph:'https://example.com/file.zip', wide:true },
+          { id:'outfile', label:'Fichier de sortie (-o)', type:'text', def:'', ph:'output.zip' },
+          { id:'resume',  label:'Reprendre si interrompu (-C -)', type:'checkbox', def:false },
+          { id:'insecure', label:'Ignorer erreurs TLS (-k)', type:'checkbox', def:false },
+        ],
+        build: v => {
+          let cmd = 'curl -L';
+          if (v.resume) cmd += ' -C -';
+          if (v.insecure) cmd += ' -k';
+          cmd += ' --progress-bar';
+          if (v.outfile) cmd += ` -o ${q(v.outfile,'output.file')}`;
+          cmd += ` "${q(v.url,'https://example.com/file')}"`;
+          return cmd;
+        },
+      },
+    },
+  },
+
+  tar: {
+    label: 'tar',
+    icon: 'fa-file-zipper',
+    subs: {
+      create: {
+        label: 'Créer une archive',
+        desc: 'Compresse un ou plusieurs répertoires/fichiers dans une archive.',
+        fields: [
+          { id:'src',         label:'Source(s)',       type:'text',   def:'',      ph:'/path/to/dir ou file1 file2', wide:true },
+          { id:'outfile',     label:'Archive de sortie', type:'text', def:'',      ph:'archive.tar.gz' },
+          { id:'compression', label:'Compression',     type:'select', def:'gz',    opts:[{v:'gz',l:'gzip (.tar.gz) — rapide'},{v:'bz2',l:'bzip2 (.tar.bz2) — meilleur taux'},{v:'xz',l:'xz (.tar.xz) — meilleur taux'},{v:'none',l:'Aucune (.tar)'}] },
+          { id:'verbose',     label:'Verbose (-v)',     type:'checkbox', def:true },
+          { id:'exclude',     label:'Exclure un pattern', type:'text', def:'', ph:'*.log ou .cache', hint:'ex: --exclude=\'*.log\'' },
+        ],
+        build: v => {
+          const compMap = { gz:'z', bz2:'j', xz:'J', none:'' };
+          const extMap  = { gz:'.tar.gz', bz2:'.tar.bz2', xz:'.tar.xz', none:'.tar' };
+          const comp = v.compression || 'gz';
+          const vflag = v.verbose ? 'v' : '';
+          const outfile = q(v.outfile, `archive${extMap[comp]}`);
+          const excl = v.exclude ? ` --exclude='${q(v.exclude,'')}'` : '';
+          return `tar -c${compMap[comp]}${vflag}f ${outfile}${excl} ${q(v.src,'/source')}`;
+        },
+      },
+      extract: {
+        label: 'Extraire une archive',
+        desc: 'Extrait le contenu d\'une archive. La compression est détectée automatiquement via l\'extension.',
+        fields: [
+          { id:'file',    label:'Archive',              type:'text',     def:'',  ph:'archive.tar.gz', wide:true },
+          { id:'dest',    label:'Dossier de destination (-C)', type:'text', def:'', ph:'/destination' },
+          { id:'verbose', label:'Verbose (-v)',          type:'checkbox', def:true },
+        ],
+        build: v => {
+          const file = q(v.file,'archive.tar.gz');
+          const comp = file.endsWith('.bz2')||file.endsWith('.tbz2') ? 'j'
+                     : file.endsWith('.xz')  ? 'J'
+                     : (file.endsWith('.gz')||file.endsWith('.tgz')) ? 'z' : '';
+          const vf = v.verbose ? 'v' : '';
+          const dest = v.dest ? ` -C ${q(v.dest,'')}` : '';
+          return `tar -x${comp}${vf}f ${file}${dest}`;
+        },
+      },
+      list: {
+        label: 'Lister le contenu',
+        desc: 'Affiche les fichiers contenus dans une archive sans l\'extraire.',
+        fields: [
+          { id:'file', label:'Archive', type:'text', def:'', ph:'archive.tar.gz', wide:true },
+        ],
+        build: v => {
+          const file = q(v.file,'archive.tar.gz');
+          const comp = file.endsWith('.bz2')||file.endsWith('.tbz2') ? 'j'
+                     : file.endsWith('.xz')  ? 'J'
+                     : (file.endsWith('.gz')||file.endsWith('.tgz')) ? 'z' : '';
+          return `tar -t${comp}f ${file}`;
+        },
+      },
+    },
+  },
+
+  rsync: {
+    label: 'rsync',
+    icon: 'fa-rotate',
+    subs: {
+      sync: {
+        label: 'Synchroniser des répertoires',
+        desc: 'Synchronise source → destination (local ou distant). Attention au / final sur la source.',
+        fields: [
+          { id:'src',      label:'Source',              type:'text',     def:'',    ph:'/source/ ou user@host:/src/', wide:true },
+          { id:'dest',     label:'Destination',         type:'text',     def:'',    ph:'user@host:/dest/ ou /dest/', wide:true },
+          { id:'archive',  label:'Mode archive (-a)',   type:'checkbox', def:true,  hint:'Conserve permissions, timestamps, liens symboliques…' },
+          { id:'verbose',  label:'Verbose (-v)',        type:'checkbox', def:true },
+          { id:'compress', label:'Compresser (-z)',     type:'checkbox', def:true,  hint:'Utile sur lien lent' },
+          { id:'progress', label:'Progression (--progress)', type:'checkbox', def:false },
+          { id:'delete',   label:'Supprimer les fichiers absents de la source (--delete)', type:'checkbox', def:false, hint:'⚠ Supprime côté destination' },
+          { id:'dryrun',   label:'Simulation (--dry-run)', type:'checkbox', def:false, hint:'Affiche ce qui serait fait sans modifier' },
+          { id:'port',     label:'Port SSH',            type:'number',   def:'22',  ph:'22' },
+          { id:'exclude',  label:'Exclure (un pattern par ligne)', type:'textarea', def:'', ph:'*.log\n.cache\ntmp/', wide:true },
+        ],
+        build: v => {
+          let flags = '-';
+          if (v.archive)  flags += 'a';
+          if (v.verbose)  flags += 'v';
+          if (v.compress) flags += 'z';
+          if (flags === '-') flags = '';
+          let cmd = `rsync ${flags}`;
+          if (v.progress) cmd += ' --progress';
+          if (v.dryrun)   cmd += ' --dry-run';
+          if (v.delete)   cmd += ' --delete';
+          const excls = (v.exclude||'').split('\n').filter(e=>e.trim());
+          excls.forEach(e => { cmd += ` --exclude='${e.trim()}'`; });
+          const port = q(v.port,'22');
+          if (port !== '22') cmd += ` -e "ssh -p ${port}"`;
+          cmd += ` ${q(v.src,'/source/')} ${q(v.dest,'user@host:/dest/')}`;
+          return cmd;
+        },
+      },
+    },
+  },
+
+  systemctl: {
+    label: 'systemctl',
+    icon: 'fa-gear',
+    subs: {
+      action: {
+        label: 'Action sur un service',
+        desc: 'Démarre, arrête, redémarre ou recharge un service systemd.',
+        fields: [
+          { id:'service', label:'Nom du service', type:'text',   def:'',       ph:'nginx' },
+          { id:'action',  label:'Action',         type:'select', def:'status', opts:[
+            {v:'status',  l:'status — état du service'},
+            {v:'start',   l:'start — démarrer'},
+            {v:'stop',    l:'stop — arrêter'},
+            {v:'restart', l:'restart — redémarrer'},
+            {v:'reload',  l:'reload — recharger la configuration'},
+            {v:'enable',  l:'enable — activer au démarrage'},
+            {v:'disable', l:'disable — désactiver au démarrage'},
+            {v:'mask',    l:'mask — empêcher tout démarrage'},
+            {v:'unmask',  l:'unmask — lever le masque'},
+          ]},
+        ],
+        build: v => `systemctl ${q(v.action,'status')} ${q(v.service,'nginx')}`,
+      },
+      list: {
+        label: 'Lister les unités',
+        desc: 'Affiche les services, timers ou sockets selon leur état.',
+        fields: [
+          { id:'type',  label:'Type',  type:'select', def:'service', opts:[{v:'service',l:'service'},{v:'timer',l:'timer'},{v:'socket',l:'socket'},{v:'target',l:'target'}] },
+          { id:'state', label:'État',  type:'select', def:'running', opts:[{v:'running',l:'running — en cours'},{v:'failed',l:'failed — en erreur'},{v:'inactive',l:'inactive'},{v:'active',l:'active (tout)'}] },
+        ],
+        build: v => `systemctl list-units --type=${q(v.type,'service')} --state=${q(v.state,'running')}`,
+      },
+      journal: {
+        label: 'Logs journalctl',
+        desc: 'Consulte les logs d\'un service via le journal systemd.',
+        fields: [
+          { id:'service', label:'Service (-u)',             type:'text',     def:'',   ph:'nginx' },
+          { id:'follow',  label:'Suivre en temps réel (-f)', type:'checkbox', def:false },
+          { id:'since',   label:'Depuis',                  type:'select',   def:'',   opts:[{v:'',l:'Depuis le début'},{v:'1 hour ago',l:'Dernière heure'},{v:'6 hours ago',l:'6 dernières heures'},{v:'today',l:'Aujourd\'hui'},{v:'yesterday',l:'Hier'}] },
+          { id:'lines',   label:'Dernières N lignes (-n)', type:'number',   def:'',   ph:'100' },
+          { id:'priority',label:'Priorité minimale (-p)',  type:'select',   def:'',   opts:[{v:'',l:'Toutes'},{v:'err',l:'err — erreurs'},{v:'warning',l:'warning — avertissements'},{v:'info',l:'info'}] },
+        ],
+        build: v => {
+          let cmd = 'journalctl';
+          if (v.service)  cmd += ` -u ${q(v.service,'')}`;
+          if (v.follow)   cmd += ' -f';
+          if (v.since)    cmd += ` --since "${q(v.since,'')}"`;
+          if (v.lines)    cmd += ` -n ${q(v.lines,'')}`;
+          if (v.priority) cmd += ` -p ${q(v.priority,'')}`;
+          return cmd;
+        },
+      },
+    },
+  },
+
+  find: {
+    label: 'find',
+    icon: 'fa-magnifying-glass',
+    subs: {
+      search: {
+        label: 'Rechercher des fichiers',
+        desc: 'Recherche des fichiers selon le nom, type, ancienneté ou taille. Supporte les actions (afficher, supprimer, exec).',
+        fields: [
+          { id:'path',     label:'Chemin de départ',          type:'text',   def:'.',  ph:'/var/log' },
+          { id:'name',     label:'Nom / extension (-name)',   type:'text',   def:'',   ph:'*.log', hint:'Supporte les globs : *.log, error.*' },
+          { id:'type',     label:'Type',                      type:'select', def:'f',  opts:[{v:'f',l:'Fichiers (-type f)'},{v:'d',l:'Dossiers (-type d)'},{v:'',l:'Tous'}] },
+          { id:'maxdepth', label:'Profondeur max (-maxdepth)', type:'number', def:'',  ph:'3' },
+          { id:'mtime',    label:'Modifié il y a plus de N jours (-mtime +N)', type:'number', def:'', ph:'30' },
+          { id:'size',     label:'Taille minimum (-size +X)', type:'text',   def:'',  ph:'100M ou 1G', hint:'Unités : c (octets), k, M, G' },
+          { id:'action',   label:'Action',                    type:'select', def:'print', opts:[{v:'print',l:'Afficher (-print, défaut)'},{v:'delete',l:'Supprimer (-delete) ⚠'},{v:'exec',l:'Exécuter une commande (-exec)'},{v:'ls',l:'Détail (-ls)'}] },
+          { id:'execmd',   label:'Commande à exécuter',       type:'text',   def:'',  ph:'chmod 644', hint:'Le {} sera remplacé par chaque fichier trouvé' },
+        ],
+        build: v => {
+          let cmd = `find ${q(v.path,'.')}`;
+          if (v.name)     cmd += ` -name "${q(v.name,'')}"`;
+          if (v.type)     cmd += ` -type ${v.type}`;
+          if (v.maxdepth) cmd += ` -maxdepth ${q(v.maxdepth,'')}`;
+          if (v.mtime)    cmd += ` -mtime +${q(v.mtime,'')}`;
+          if (v.size)     cmd += ` -size +${q(v.size,'')}`;
+          if (v.action === 'delete') cmd += ' -delete';
+          else if (v.action === 'ls') cmd += ' -ls';
+          else if (v.action === 'exec' && v.execmd) cmd += ` -exec ${q(v.execmd,'')} {} \\;`;
+          return cmd;
+        },
+      },
+    },
+  },
+
+};
+
+/* ── State ───────────────────────────────────────────────────────────────────── */
+let curCat = Object.keys(CMDS)[0];
+let curSub = null;
+
+/* ── Categories ─────────────────────────────────────────────────────────────── */
+function renderCats() {
+    const container = document.getElementById('cmd-cats');
+    container.innerHTML = '';
+    Object.entries(CMDS).forEach(([id, cat]) => {
+        const btn = document.createElement('button');
+        btn.className = 'cmd-cat-btn' + (id === curCat ? ' active' : '');
+        const icon = document.createElement('i');
+        icon.className = `fas ${cat.icon}`;
+        icon.setAttribute('aria-hidden','true');
+        btn.appendChild(icon);
+        btn.appendChild(document.createTextNode(' ' + cat.label));
+        btn.addEventListener('click', () => selectCat(id));
+        container.appendChild(btn);
+    });
+}
+
+function selectCat(catId) {
+    curCat = catId;
+    renderCats();
+    const subs = Object.keys(CMDS[catId].subs);
+    curSub = subs[0];
+    renderSubSelect();
+    renderForm();
+}
+
+/* ── Sub-command select ─────────────────────────────────────────────────────── */
+function renderSubSelect() {
+    const sel = document.getElementById('cmd-sub');
+    sel.innerHTML = '';
+    const subs = CMDS[curCat].subs;
+    Object.entries(subs).forEach(([id, sub]) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = sub.label;
+        if (id === curSub) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+document.getElementById('cmd-sub').addEventListener('change', function() {
+    curSub = this.value;
+    renderForm();
+});
+
+/* ── Form ────────────────────────────────────────────────────────────────────── */
+function renderForm() {
+    const sub = CMDS[curCat].subs[curSub];
+    document.getElementById('cmd-desc').textContent = sub.desc;
+
+    const form = document.getElementById('cmd-form');
+    form.innerHTML = '';
+
+    sub.fields.forEach(f => {
+        const col = document.createElement('div');
+        col.className = (f.wide ? 'col-12' : 'col-md-6 col-12');
+
+        const lbl = document.createElement('label');
+        lbl.className = 'form-label';
+        lbl.htmlFor   = `cf-${f.id}`;
+        lbl.textContent = f.label;
+
+        col.appendChild(lbl);
+
+        if (f.type === 'checkbox') {
+            const wrap = document.createElement('div');
+            wrap.className = 'form-check';
+            const cb = document.createElement('input');
+            cb.type      = 'checkbox';
+            cb.id        = `cf-${f.id}`;
+            cb.className = 'form-check-input';
+            cb.checked   = !!f.def;
+            cb.addEventListener('change', buildCmd);
+            const clbl = document.createElement('label');
+            clbl.className = 'form-check-label';
+            clbl.htmlFor   = `cf-${f.id}`;
+            clbl.textContent = '';
+            wrap.appendChild(cb);
+            wrap.appendChild(clbl);
+            col.appendChild(wrap);
+        } else if (f.type === 'select') {
+            const sel = document.createElement('select');
+            sel.id        = `cf-${f.id}`;
+            sel.className = 'form-select form-select-sm';
+            (f.opts||[]).forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.v; opt.textContent = o.l;
+                if (o.v === f.def) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', buildCmd);
+            col.appendChild(sel);
+        } else if (f.type === 'textarea') {
+            const ta = document.createElement('textarea');
+            ta.id          = `cf-${f.id}`;
+            ta.className   = 'form-control form-control-sm';
+            ta.rows        = 3;
+            ta.placeholder = f.ph || '';
+            ta.value       = f.def || '';
+            ta.spellcheck  = false;
+            ta.addEventListener('input', buildCmd);
+            col.appendChild(ta);
+        } else {
+            const inp = document.createElement('input');
+            inp.type        = f.type === 'number' ? 'number' : 'text';
+            inp.id          = `cf-${f.id}`;
+            inp.className   = 'form-control form-control-sm';
+            inp.placeholder = f.ph || '';
+            inp.value       = f.def || '';
+            inp.spellcheck  = false;
+            inp.autocomplete = 'off';
+            inp.addEventListener('input', buildCmd);
+            col.appendChild(inp);
+        }
+
+        if (f.hint) {
+            const hint = document.createElement('div');
+            hint.className   = 'cmd-hint';
+            hint.textContent = f.hint;
+            col.appendChild(hint);
+        }
+
+        form.appendChild(col);
+    });
+
+    buildCmd();
+}
+
+/* ── Build ───────────────────────────────────────────────────────────────────── */
+function buildCmd() {
+    const sub    = CMDS[curCat].subs[curSub];
+    const values = {};
+    sub.fields.forEach(f => {
+        const el = document.getElementById(`cf-${f.id}`);
+        if (!el) return;
+        if (f.type === 'checkbox') values[f.id] = el.checked;
+        else values[f.id] = el.value;
+    });
+    const cmd = sub.build(values);
+    document.getElementById('cmd-output').textContent = cmd;
+}
+
+/* ── Copy ────────────────────────────────────────────────────────────────────── */
+document.getElementById('cmd-copy').addEventListener('click', () => {
+    const text = document.getElementById('cmd-output').textContent;
+    if (!text || text === '—') return;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('cmd-copy');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+        btn.style.color = '#4ade80';
+        setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; }, 1500);
+    }).catch(() => {});
+});
+
+/* ── Init ────────────────────────────────────────────────────────────────────── */
+renderCats();
+selectCat(curCat);
+
+})();
+</script>
+{% endblock %}

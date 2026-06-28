@@ -1,0 +1,90 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Note créée — DropText{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">✅</div>
+    <h1 class="hero-title">Note créée</h1>
+    <p class="hero-subtitle">Copiez le lien ci-dessous et transmettez-le au destinataire.</p>
+</section>
+
+<div class="container" style="max-width:680px;">
+
+    <div class="card-modern mb-4">
+        <h2 style="font-size:1rem; font-weight:600; margin-bottom:1rem;">
+            <i class="fas fa-link" aria-hidden="true"></i> Lien à partager
+        </h2>
+
+        <div class="input-group mb-2">
+            <input type="text" id="share-url" class="form-control font-monospace"
+                value="{{ url('droptext_show', {token: note.token}) }}" readonly>
+            <button type="button" class="btn btn-primary" id="copy-btn">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+        </div>
+        <div id="copy-feedback" style="font-size:0.85rem; color:var(--color-success); display:none;">
+            <i class="fas fa-check" aria-hidden="true"></i> Lien copié !
+        </div>
+    </div>
+
+    <div class="card-modern mb-4">
+        <h2 style="font-size:1rem; font-weight:600; margin-bottom:1rem;">
+            <i class="fas fa-info-circle" aria-hidden="true"></i> Récapitulatif
+        </h2>
+        <ul class="list-unstyled mb-0" style="line-height:2;">
+            <li>
+                <i class="fas fa-clock fa-fw" style="color:var(--color-text-secondary);" aria-hidden="true"></i>
+                Expire le <strong>{{ note.expiresAt|date('d/m/Y à H:i') }}</strong>
+            </li>
+            <li>
+                <i class="fas fa-eye fa-fw" style="color:var(--color-text-secondary);" aria-hidden="true"></i>
+                {% if note.maxReads is null %}
+                    Lectures : <strong>illimitées</strong>
+                {% else %}
+                    Lectures autorisées : <strong>{{ note.maxReads }}</strong> — la note sera détruite après
+                {% endif %}
+            </li>
+            <li>
+                <i class="fas fa-lock fa-fw" style="color:var(--color-text-secondary);" aria-hidden="true"></i>
+                {% if note.hasPassphrase %}
+                    Protégée par <strong>passphrase</strong> — le destinataire devra la saisir
+                {% else %}
+                    Accès <strong>libre</strong> (sans passphrase)
+                {% endif %}
+            </li>
+            <li>
+                <i class="fas fa-code fa-fw" style="color:var(--color-text-secondary);" aria-hidden="true"></i>
+                Chiffrement : <strong>AES-256-GCM</strong>
+            </li>
+        </ul>
+    </div>
+
+    {% if note.hasPassphrase %}
+    <div class="alert alert-warning mb-4">
+        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+        <strong>N'oubliez pas de communiquer la passphrase séparément</strong> — de préférence par un canal différent du lien.
+    </div>
+    {% endif %}
+
+    <div class="d-grid">
+        <a href="{{ path('droptext_index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-plus" aria-hidden="true"></i> Créer une nouvelle note
+        </a>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block script %}
+<script nonce="{{ csp_nonce() }}">
+document.getElementById('copy-btn').addEventListener('click', function () {
+    const url      = document.getElementById('share-url').value;
+    const feedback = document.getElementById('copy-feedback');
+    navigator.clipboard.writeText(url).then(function () {
+        feedback.style.display = 'block';
+        setTimeout(function () { feedback.style.display = 'none'; }, 3000);
+    });
+});
+</script>
+{% endblock %}

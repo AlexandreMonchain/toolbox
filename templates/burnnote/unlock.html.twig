@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}BurnNote — Note protégée{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">🔒</div>
+    <h1 class="hero-title">Note protégée</h1>
+    <p class="hero-subtitle">Cette note est protégée par une passphrase.</p>
+</section>
+
+<div class="container" style="max-width:480px;">
+
+    {% if error is defined %}
+    <div class="alert alert-danger mb-4">
+        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="card-modern">
+        <form method="post" action="{{ path('burnnote_unlock', {token: token}) }}" novalidate>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('burnnote_unlock_' ~ token) }}">
+
+            <div class="mb-4">
+                <label class="form-label" for="unlock-passphrase">Passphrase</label>
+                <input type="text" id="unlock-passphrase" name="passphrase"
+                    class="form-control font-monospace" placeholder="Saisissez la passphrase"
+                    maxlength="128" autocomplete="off" spellcheck="false" autofocus required>
+            </div>
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-unlock" aria-hidden="true"></i> Déverrouiller
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,378 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Générateur de QR code — Toolbox{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">📱</div>
+    <h1 class="hero-title">Générateur de QR code</h1>
+    <p class="hero-subtitle">Créez des QR codes pour URL, texte, Wi-Fi et fiche contact vCard. Génération locale, aucune donnée envoyée.</p>
+</section>
+
+<div class="qr-layout">
+
+    {# ── Formulaire ───────────────────────────────────────────────── #}
+    <div class="card-modern qr-form-card">
+
+        {# Sélecteur de type #}
+        <div class="qr-type-tabs" role="tablist" aria-label="Type de QR code">
+            <button class="qr-tab active" data-type="url" role="tab">
+                <i class="fas fa-link fa-fw" aria-hidden="true"></i> URL
+            </button>
+            <button class="qr-tab" data-type="text" role="tab">
+                <i class="fas fa-align-left fa-fw" aria-hidden="true"></i> Texte
+            </button>
+            <button class="qr-tab" data-type="wifi" role="tab">
+                <i class="fas fa-wifi fa-fw" aria-hidden="true"></i> Wi-Fi
+            </button>
+            <button class="qr-tab" data-type="vcard" role="tab">
+                <i class="fas fa-address-card fa-fw" aria-hidden="true"></i> Fiche contact
+            </button>
+        </div>
+
+        {# Panneau URL #}
+        <div id="panel-url" class="qr-panel">
+            <div class="mb-3">
+                <label class="form-label" for="url-value">Adresse URL</label>
+                <input type="url" id="url-value" class="form-control" placeholder="https://example.com">
+            </div>
+        </div>
+
+        {# Panneau Texte #}
+        <div id="panel-text" class="qr-panel" style="display:none;">
+            <div class="mb-3">
+                <label class="form-label" for="text-value">Texte libre</label>
+                <textarea id="text-value" class="form-control" rows="4" placeholder="Votre texte…" maxlength="2000"></textarea>
+                <div class="form-text"><span id="text-count">0</span> / 2000 caractères</div>
+            </div>
+        </div>
+
+        {# Panneau Wi-Fi #}
+        <div id="panel-wifi" class="qr-panel" style="display:none;">
+            <div class="mb-3">
+                <label class="form-label" for="wifi-ssid">Nom du réseau (SSID)</label>
+                <input type="text" id="wifi-ssid" class="form-control" placeholder="MonReseau">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="wifi-pass">Mot de passe</label>
+                <input type="text" id="wifi-pass" class="form-control font-monospace" placeholder="MotDePasse">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="wifi-enc">Sécurité</label>
+                <select id="wifi-enc" class="form-select">
+                    <option value="WPA">WPA / WPA2</option>
+                    <option value="WEP">WEP</option>
+                    <option value="nopass">Aucune (réseau ouvert)</option>
+                </select>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="wifi-hidden">
+                <label class="form-check-label" for="wifi-hidden" style="font-size:0.875rem;">Réseau masqué</label>
+            </div>
+        </div>
+
+        {# Panneau Fiche contact (vCard) #}
+        <div id="panel-vcard" class="qr-panel" style="display:none;">
+            <div class="row g-2 mb-2">
+                <div class="col">
+                    <label class="form-label" for="vc-first">Prénom</label>
+                    <input type="text" id="vc-first" class="form-control" placeholder="Jean">
+                </div>
+                <div class="col">
+                    <label class="form-label" for="vc-last">Nom</label>
+                    <input type="text" id="vc-last" class="form-control" placeholder="Dupont">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col">
+                    <label class="form-label" for="vc-org">Organisation</label>
+                    <input type="text" id="vc-org" class="form-control" placeholder="ACME Corp">
+                </div>
+                <div class="col">
+                    <label class="form-label" for="vc-title">Poste</label>
+                    <input type="text" id="vc-title" class="form-control" placeholder="Ingénieur système">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col">
+                    <label class="form-label" for="vc-tel">Tél. mobile</label>
+                    <input type="tel" id="vc-tel" class="form-control font-monospace" placeholder="+33612345678">
+                </div>
+                <div class="col">
+                    <label class="form-label" for="vc-tel-fixe">Tél. fixe</label>
+                    <input type="tel" id="vc-tel-fixe" class="form-control font-monospace" placeholder="+33123456789">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col">
+                    <label class="form-label" for="vc-email">Email</label>
+                    <input type="email" id="vc-email" class="form-control" placeholder="jean.dupont@example.com">
+                </div>
+                <div class="col">
+                    <label class="form-label" for="vc-url">Site web</label>
+                    <input type="url" id="vc-url" class="form-control" placeholder="https://example.com">
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label" for="vc-street">Adresse</label>
+                <input type="text" id="vc-street" class="form-control" placeholder="12 rue de la Paix">
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-4">
+                    <label class="form-label" for="vc-postal">Code postal</label>
+                    <input type="text" id="vc-postal" class="form-control" placeholder="75001">
+                </div>
+                <div class="col">
+                    <label class="form-label" for="vc-city">Ville</label>
+                    <input type="text" id="vc-city" class="form-control" placeholder="Paris">
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        {# Options #}
+        <div class="qr-options">
+            <div>
+                <label class="form-label" for="qr-size">Taille</label>
+                <select id="qr-size" class="form-select form-select-sm">
+                    <option value="128">128 px</option>
+                    <option value="256" selected>256 px</option>
+                    <option value="512">512 px</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="qr-correction">Conditions de scan</label>
+                <select id="qr-correction" class="form-select form-select-sm">
+                    <option value="M" selected>Usage standard</option>
+                    <option value="H">Environnement difficile</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="button" id="generate-btn" class="btn btn-primary mt-3 w-100">
+            <i class="fas fa-qrcode" aria-hidden="true"></i> Générer
+        </button>
+
+    </div>
+
+    {# ── Prévisualisation ─────────────────────────────────────────── #}
+    <div class="card-modern qr-preview-card">
+        <div id="qr-placeholder" class="qr-placeholder">
+            <i class="fas fa-qrcode" aria-hidden="true" style="font-size:3.5rem; opacity:0.15;"></i>
+            <p style="margin-top:1rem; font-size:0.875rem; color:var(--color-text-secondary);">
+                Remplissez le formulaire<br>et cliquez sur Générer
+            </p>
+        </div>
+        <div id="qr-output" style="display:none; text-align:center;">
+            <div id="qr-container" style="display:inline-block; padding:12px; background:#fff; border-radius:10px; margin-bottom:1rem;"></div>
+            <div>
+                <button type="button" id="download-btn" class="btn btn-primary btn-sm">
+                    <i class="fas fa-download" aria-hidden="true"></i> Télécharger PNG
+                </button>
+                <button type="button" id="reset-btn" class="btn btn-sm btn-outline-secondary ms-2">
+                    <i class="fas fa-trash" aria-hidden="true"></i> Effacer
+                </button>
+            </div>
+            <p id="qr-data-preview" style="font-size:0.75rem; color:var(--color-text-secondary); margin-top:1rem; word-break:break-all; max-height:60px; overflow:hidden;"></p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="{{ asset('qrcode/qrcode.min.js') }}"></script>
+
+<style>
+.qr-layout {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 1.25rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+    align-items: start;
+}
+@media (max-width: 780px) { .qr-layout { grid-template-columns: 1fr; } }
+
+.qr-type-tabs {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+.qr-tab {
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    background: var(--color-bg-light);
+    color: var(--color-text-secondary);
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 150ms ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.qr-tab.active, .qr-tab:hover {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+.qr-options {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.qr-options > div {
+    flex: 1 1 140px;
+}
+.qr-preview-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    position: sticky;
+    top: 5rem;
+}
+.qr-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+}
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+let currentType = 'url';
+let qrInstance  = null;
+
+// ── Onglets ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.qr-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+        document.querySelectorAll('.qr-tab').forEach(function (t) { t.classList.remove('active'); });
+        document.querySelectorAll('.qr-panel').forEach(function (p) { p.style.display = 'none'; });
+        tab.classList.add('active');
+        currentType = tab.dataset.type;
+        document.getElementById('panel-' + currentType).style.display = '';
+    });
+});
+
+document.getElementById('text-value').addEventListener('input', function () {
+    document.getElementById('text-count').textContent = this.value.length;
+});
+
+// ── Construction de la donnée QR ─────────────────────────────────────────
+function buildQrData() {
+    if (currentType === 'url') {
+        return document.getElementById('url-value').value.trim();
+    }
+    if (currentType === 'text') {
+        return document.getElementById('text-value').value;
+    }
+    if (currentType === 'wifi') {
+        const ssid   = escapeWifi(document.getElementById('wifi-ssid').value);
+        const pass   = escapeWifi(document.getElementById('wifi-pass').value);
+        const enc    = document.getElementById('wifi-enc').value;
+        const hidden = document.getElementById('wifi-hidden').checked ? 'true' : 'false';
+        const p      = enc === 'nopass' ? '' : pass;
+        return 'WIFI:T:' + enc + ';S:' + ssid + ';P:' + p + ';H:' + hidden + ';;';
+    }
+    if (currentType === 'vcard') {
+        const first  = vcEsc(document.getElementById('vc-first').value.trim());
+        const last   = vcEsc(document.getElementById('vc-last').value.trim());
+        const org    = vcEsc(document.getElementById('vc-org').value.trim());
+        const title  = vcEsc(document.getElementById('vc-title').value.trim());
+        const tel    = document.getElementById('vc-tel').value.trim().replace(/\s/g, '');
+        const telFix = document.getElementById('vc-tel-fixe').value.trim().replace(/\s/g, '');
+        const email  = document.getElementById('vc-email').value.trim();
+        const street = vcEsc(document.getElementById('vc-street').value.trim());
+        const postal = vcEsc(document.getElementById('vc-postal').value.trim());
+        const city   = vcEsc(document.getElementById('vc-city').value.trim());
+        const url    = document.getElementById('vc-url').value.trim();
+
+        if (!first && !last) return '';
+
+        const fn = (first + ' ' + last).trim();
+        let vcard = 'BEGIN:VCARD\nVERSION:3.0\n';
+        vcard += 'N:' + last + ';' + first + ';;;\n';
+        vcard += 'FN:' + fn + '\n';
+        if (org)    vcard += 'ORG:' + org + '\n';
+        if (title)  vcard += 'TITLE:' + title + '\n';
+        if (tel)    vcard += 'TEL;TYPE=CELL:' + tel + '\n';
+        if (telFix) vcard += 'TEL;TYPE=WORK:' + telFix + '\n';
+        if (email)  vcard += 'EMAIL:' + email + '\n';
+        if (street || city || postal) {
+            vcard += 'ADR;TYPE=HOME:;;' + street + ';' + city + ';;' + postal + ';\n';
+        }
+        if (url)    vcard += 'URL:' + url + '\n';
+        vcard += 'END:VCARD';
+        return vcard;
+    }
+    return '';
+}
+
+function escapeWifi(s) {
+    return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/"/g, '\\"');
+}
+function vcEsc(s) {
+    return s.replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+}
+
+const correctionMap = { L: QRCode.CorrectLevel.L, M: QRCode.CorrectLevel.M, Q: QRCode.CorrectLevel.Q, H: QRCode.CorrectLevel.H };
+
+// ── Génération ────────────────────────────────────────────────────────────
+document.getElementById('generate-btn').addEventListener('click', function () {
+    const data = buildQrData();
+    if (!data) return;
+
+    const size       = parseInt(document.getElementById('qr-size').value, 10);
+    const correction = document.getElementById('qr-correction').value;
+    const container  = document.getElementById('qr-container');
+
+    container.innerHTML = '';
+    if (qrInstance) { try { qrInstance.clear(); } catch(e) {} }
+
+    try {
+        qrInstance = new QRCode(container, {
+            text:         data,
+            width:        size,
+            height:       size,
+            colorDark:    '#000000',
+            colorLight:   '#ffffff',
+            correctLevel: correctionMap[correction] || QRCode.CorrectLevel.Q,
+        });
+    } catch (e) {
+        container.innerHTML = '<p style="color:var(--color-danger); font-size:0.85rem;">Erreur : données trop longues ou invalides.</p>';
+    }
+
+    document.getElementById('qr-placeholder').style.display = 'none';
+    document.getElementById('qr-output').style.display = '';
+
+    const preview = data.length > 100 ? data.substring(0, 100) + '…' : data;
+    document.getElementById('qr-data-preview').textContent = preview;
+});
+
+document.getElementById('download-btn').addEventListener('click', function () {
+    const canvas = document.querySelector('#qr-container canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.download = 'qrcode.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+});
+
+document.getElementById('reset-btn').addEventListener('click', function () {
+    document.getElementById('qr-container').innerHTML = '';
+    document.getElementById('qr-output').style.display = 'none';
+    document.getElementById('qr-placeholder').style.display = '';
+    qrInstance = null;
+});
+</script>
+{% endblock %}

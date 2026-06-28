@@ -1,0 +1,30 @@
+framework:
+    rate_limiter:
+        burn_note:
+            policy: sliding_window
+            limit: 20
+            interval: '1 minute'
+        burn_note_create:
+            policy: sliding_window
+            limit: 10
+            interval: '1 minute'
+        burn_note_unlock:
+            policy: sliding_window
+            limit: 5
+            interval: '1 minute'
+        csr_generate:
+            policy: sliding_window
+            limit: 20
+            interval: '1 minute'
+        droptext_create:
+            policy: sliding_window
+            limit: 10
+            interval: '5 minutes'
+        droptext_unlock:
+            policy: sliding_window
+            limit: 5
+            interval: '1 minute'
+        droptext_burn:
+            policy: sliding_window
+            limit: 10
+            interval: '1 minute'

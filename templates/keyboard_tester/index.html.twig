@@ -1,0 +1,394 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Testeur de clavier — Toolbox{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">⌨️</div>
+    <h1 class="hero-title">Testeur de clavier</h1>
+    <p class="hero-subtitle">Vérifiez que chaque touche de votre clavier fonctionne correctement.</p>
+</section>
+
+<div style="max-width:1400px; margin:0 auto; padding:0 1rem 3rem;">
+
+    {# ── Barre de stats ─────────────────────────────────────────────── #}
+    <div class="card-modern mb-3 d-flex align-items-center gap-3 flex-wrap" style="padding:1rem 1.25rem !important;">
+        <div>
+            <span id="tested-count" style="font-size:1.5rem; font-weight:700; color:var(--color-primary);">0</span>
+            <span style="font-size:0.85rem; color:var(--color-text-secondary);"> / <span id="total-count">0</span> touches testées</span>
+        </div>
+        <div style="flex:1; min-width:120px;">
+            <div style="height:8px; background:var(--color-border); border-radius:9999px; overflow:hidden;">
+                <div id="progress-bar" style="height:100%; width:0%; background:var(--color-primary); border-radius:9999px; transition:width 200ms ease;"></div>
+            </div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <button type="button" id="reset-btn" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-rotate-left" aria-hidden="true"></i> Réinitialiser
+            </button>
+            <select id="layout-select" class="form-select form-select-sm" style="width:auto;">
+                <option value="azerty-pc">AZERTY — PC</option>
+                <option value="azerty-mac">AZERTY — Mac</option>
+            </select>
+        </div>
+    </div>
+
+    {# ── Clavier visuel ─────────────────────────────────────────────── #}
+    <div class="card-modern" style="overflow-x:auto; padding:1.25rem !important;">
+        <div class="kb-wrapper">
+            <div class="kb-section" id="kb-main"></div>
+            <div class="kb-section kb-section-nav" id="kb-nav"></div>
+            <div class="kb-numpad" id="kb-numpad"></div>
+        </div>
+    </div>
+
+    {# ── Dernière touche ─────────────────────────────────────────────── #}
+    <div class="card-modern mt-3 text-center" style="padding:0.85rem !important;">
+        <span style="font-size:0.8rem; color:var(--color-text-secondary);">Dernière touche : </span>
+        <span id="last-key" style="font-family:monospace; font-size:0.875rem; color:var(--color-primary);">—</span>
+        <span style="font-size:0.8rem; color:var(--color-text-secondary); margin-left:0.75rem;">Code : </span>
+        <span id="last-code" style="font-family:monospace; font-size:0.875rem; color:var(--color-text-secondary);">—</span>
+        <span id="fn-note" style="display:none; font-size:0.78rem; color:var(--color-text-secondary); margin-left:1rem; font-style:italic;">
+            (La touche fn n'est pas détectable dans le navigateur)
+        </span>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+.kb-wrapper {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-end;
+    min-width: 900px;
+}
+.kb-section { display: flex; flex-direction: column; gap: 0.35rem; }
+.kb-section-nav { gap: 0.35rem; }
+
+.kb-row { display: flex; gap: 0.35rem; }
+
+.kb-key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    min-width: 44px;
+    padding: 0 5px;
+    border-radius: 7px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-light);
+    color: var(--color-text-secondary);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: default;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+    user-select: none;
+    line-height: 1.15;
+    white-space: pre-wrap;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+.kb-key.pressed {
+    background: #DCFCE7;
+    border-color: #16A34A;
+    color: #15803D;
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+[data-theme="dark"] .kb-key.pressed {
+    background: #052E16;
+    border-color: #16A34A;
+    color: #4ADE80;
+    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.15);
+}
+.kb-key.active-flash {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+[data-theme="dark"] .kb-key.active-flash {
+    background: #252840;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+.kb-key.kb-gap {
+    background: transparent;
+    border-color: transparent;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* Pavé numérique — CSS Grid pour les touches qui s'étendent */
+.kb-numpad {
+    display: grid;
+    grid-template-columns: repeat(4, 44px);
+    grid-auto-rows: 44px;
+    gap: 0.35rem;
+}
+.kb-numpad .kb-key { min-width: unset; width: 100%; height: 100%; }
+
+/* Séparateur visuel entre les sections */
+.kb-section-nav { padding-left: 0.5rem; border-left: 2px solid var(--color-border); }
+.kb-numpad { padding-left: 0.5rem; border-left: 2px solid var(--color-border); }
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+const BASE = 44; // px pour width 1
+const GAP  = 5.6;
+
+function w(factor) { return (factor * BASE + (factor - 1) * GAP) + 'px'; }
+
+// ══════════════════════════════════════════════════════════════════════════
+// Layouts — rang principal (rows)
+// Chaque touche : { c: code, l: label, w: facteur largeur }
+// ══════════════════════════════════════════════════════════════════════════
+
+const MAIN_AZERTY_PC = [
+    // Fn row
+    [{c:'Escape',l:'Echap',w:1.3},{c:'F1',l:'F1',w:1},{c:'F2',l:'F2',w:1},{c:'F3',l:'F3',w:1},{c:'F4',l:'F4',w:1},{c:'F5',l:'F5',w:1},{c:'F6',l:'F6',w:1},{c:'F7',l:'F7',w:1},{c:'F8',l:'F8',w:1},{c:'F9',l:'F9',w:1},{c:'F10',l:'F10',w:1},{c:'F11',l:'F11',w:1},{c:'F12',l:'F12',w:1}],
+    // Chiffres
+    [{c:'Backquote',l:'²',w:1},{c:'Digit1',l:'&\n1',w:1},{c:'Digit2',l:'é\n2',w:1},{c:'Digit3',l:'"\n3',w:1},{c:'Digit4',l:"'\n4",w:1},{c:'Digit5',l:'(\n5',w:1},{c:'Digit6',l:'-\n6',w:1},{c:'Digit7',l:'è\n7',w:1},{c:'Digit8',l:'_\n8',w:1},{c:'Digit9',l:'ç\n9',w:1},{c:'Digit0',l:'à\n0',w:1},{c:'Minus',l:')\n°',w:1},{c:'Equal',l:'=\n+',w:1},{c:'Backspace',l:'⌫ Ret.',w:2}],
+    // AZERTY
+    [{c:'Tab',l:'Tab ⇥',w:1.6},{c:'KeyQ',l:'A',w:1},{c:'KeyW',l:'Z',w:1},{c:'KeyE',l:'E',w:1},{c:'KeyR',l:'R',w:1},{c:'KeyT',l:'T',w:1},{c:'KeyY',l:'Y',w:1},{c:'KeyU',l:'U',w:1},{c:'KeyI',l:'I',w:1},{c:'KeyO',l:'O',w:1},{c:'KeyP',l:'P',w:1},{c:'BracketLeft',l:'^\n¨',w:1},{c:'BracketRight',l:'$\n£',w:1},{c:'Enter',l:'↵ Entr.',w:1.8}],
+    // Accueil
+    [{c:'CapsLock',l:'Verr Maj',w:1.9},{c:'KeyA',l:'Q',w:1},{c:'KeyS',l:'S',w:1},{c:'KeyD',l:'D',w:1},{c:'KeyF',l:'F',w:1},{c:'KeyG',l:'G',w:1},{c:'KeyH',l:'H',w:1},{c:'KeyJ',l:'J',w:1},{c:'KeyK',l:'K',w:1},{c:'KeyL',l:'L',w:1},{c:'Semicolon',l:'M',w:1},{c:'Quote',l:'ù\n%',w:1},{c:'Backslash',l:'*\nµ',w:1}],
+    // Bas
+    [{c:'ShiftLeft',l:'⇧ Maj',w:1.5},{c:'IntlBackslash',l:'<\n>',w:1},{c:'KeyZ',l:'W',w:1},{c:'KeyX',l:'X',w:1},{c:'KeyC',l:'C',w:1},{c:'KeyV',l:'V',w:1},{c:'KeyB',l:'B',w:1},{c:'KeyN',l:'N',w:1},{c:'Comma',l:',\n?',w:1},{c:'Period',l:';\n.',w:1},{c:'Slash',l:':\n/',w:1},{c:'ShiftRight',l:'⇧ Maj',w:2.9}],
+    // Espace
+    [{c:'ControlLeft',l:'Ctrl',w:1.4},{c:'MetaLeft',l:'⊞',w:1},{c:'AltLeft',l:'Alt',w:1.4},{c:'Space',l:' ',w:6.2},{c:'AltRight',l:'Alt Gr',w:1.4},{c:'MetaRight',l:'⊞',w:1},{c:'ContextMenu',l:'☰',w:1},{c:'ControlRight',l:'Ctrl',w:1.4}],
+];
+
+// Mac AZERTY — Différences clés vs PC :
+// • La touche à gauche du 1 est "@" (code IntlBackslash sur macOS)
+// • La touche entre Shift gauche et W fire Backquote (inversion des codes ISO sur macOS)
+// • Rangée basse : fn / Ctrl / Opt / Cmd / Espace / Cmd / Opt (pas de ContextMenu, pas de Ctrl droit)
+const MAIN_AZERTY_MAC = [
+    // Fn row
+    [{c:'Escape',l:'⎋ Echap',w:1.3},{c:'F1',l:'F1',w:1},{c:'F2',l:'F2',w:1},{c:'F3',l:'F3',w:1},{c:'F4',l:'F4',w:1},{c:'F5',l:'F5',w:1},{c:'F6',l:'F6',w:1},{c:'F7',l:'F7',w:1},{c:'F8',l:'F8',w:1},{c:'F9',l:'F9',w:1},{c:'F10',l:'F10',w:1},{c:'F11',l:'F11',w:1},{c:'F12',l:'F12',w:1}],
+    // Chiffres — code IntlBackslash pour la touche @ (inversion macOS)
+    [{c:'IntlBackslash',l:'@\n#',w:1},{c:'Digit1',l:'&\n1',w:1},{c:'Digit2',l:'é\n2',w:1},{c:'Digit3',l:'"\n3',w:1},{c:'Digit4',l:"'\n4",w:1},{c:'Digit5',l:'(\n5',w:1},{c:'Digit6',l:'-\n6',w:1},{c:'Digit7',l:'è\n7',w:1},{c:'Digit8',l:'_\n8',w:1},{c:'Digit9',l:'ç\n9',w:1},{c:'Digit0',l:'à\n0',w:1},{c:'Minus',l:')\n°',w:1},{c:'Equal',l:'-\n_',w:1},{c:'Backspace',l:'⌫ Ret.',w:2}],
+    // AZERTY
+    [{c:'Tab',l:'Tab ⇥',w:1.6},{c:'KeyQ',l:'A',w:1},{c:'KeyW',l:'Z',w:1},{c:'KeyE',l:'E',w:1},{c:'KeyR',l:'R',w:1},{c:'KeyT',l:'T',w:1},{c:'KeyY',l:'Y',w:1},{c:'KeyU',l:'U',w:1},{c:'KeyI',l:'I',w:1},{c:'KeyO',l:'O',w:1},{c:'KeyP',l:'P',w:1},{c:'BracketLeft',l:'^\n¨',w:1},{c:'BracketRight',l:'$\n£',w:1},{c:'Enter',l:'↵ Entr.',w:1.8}],
+    // Accueil
+    [{c:'CapsLock',l:'Verr Maj',w:1.9},{c:'KeyA',l:'Q',w:1},{c:'KeyS',l:'S',w:1},{c:'KeyD',l:'D',w:1},{c:'KeyF',l:'F',w:1},{c:'KeyG',l:'G',w:1},{c:'KeyH',l:'H',w:1},{c:'KeyJ',l:'J',w:1},{c:'KeyK',l:'K',w:1},{c:'KeyL',l:'L',w:1},{c:'Semicolon',l:'M',w:1},{c:'Quote',l:'ù\n%',w:1},{c:'Backslash',l:'*\nµ',w:1}],
+    // Bas — code Backquote pour la touche <> (inversion macOS)
+    [{c:'ShiftLeft',l:'⇧ Maj',w:1.5},{c:'Backquote',l:'<\n>',w:1},{c:'KeyZ',l:'W',w:1},{c:'KeyX',l:'X',w:1},{c:'KeyC',l:'C',w:1},{c:'KeyV',l:'V',w:1},{c:'KeyB',l:'B',w:1},{c:'KeyN',l:'N',w:1},{c:'Comma',l:',\n?',w:1},{c:'Period',l:';\n.',w:1},{c:'Slash',l:':\n/',w:1},{c:'ShiftRight',l:'⇧ Maj',w:2.9}],
+    // Espace Mac
+    [{c:'Fn',l:'fn',w:1.2},{c:'ControlLeft',l:'⌃ Ctrl',w:1.4},{c:'AltLeft',l:'⌥ Opt',w:1.4},{c:'MetaLeft',l:'⌘ Cmd',w:1.6},{c:'Space',l:' ',w:5.8},{c:'MetaRight',l:'⌘ Cmd',w:1.6},{c:'AltRight',l:'⌥ Opt',w:1.4}],
+];
+
+// ══════════════════════════════════════════════════════════════════════════
+// Cluster de navigation
+// ══════════════════════════════════════════════════════════════════════════
+const NAV_PC = [
+    [{c:'PrintScreen',l:'Impr\nécran',w:1},{c:'ScrollLock',l:'Arrêt\ndéf.',w:1},{c:'Pause',l:'Pause',w:1}],
+    [{c:'Insert',l:'Ins',w:1},{c:'Home',l:'Orig.',w:1},{c:'PageUp',l:'Pg↑',w:1}],
+    [{c:'Delete',l:'Suppr',w:1},{c:'End',l:'Fin',w:1},{c:'PageDown',l:'Pg↓',w:1}],
+    // gap row
+    [{c:'__gap1',l:'',w:1},{c:'ArrowUp',l:'↑',w:1},{c:'__gap2',l:'',w:1}],
+    [{c:'ArrowLeft',l:'←',w:1},{c:'ArrowDown',l:'↓',w:1},{c:'ArrowRight',l:'→',w:1}],
+];
+
+// Mac : pas de PrintScreen/ScrollLock/Pause/Insert, mais flèches + nav
+const NAV_MAC = [
+    [{c:'__gap1',l:'',w:1},{c:'__gap2',l:'',w:1},{c:'__gap3',l:'',w:1}],
+    [{c:'__gap4',l:'',w:1},{c:'Home',l:'⇤',w:1},{c:'PageUp',l:'⇞',w:1}],
+    [{c:'__gap5',l:'',w:1},{c:'End',l:'⇥',w:1},{c:'PageDown',l:'⇟',w:1}],
+    [{c:'__gap6',l:'',w:1},{c:'ArrowUp',l:'↑',w:1},{c:'__gap7',l:'',w:1}],
+    [{c:'ArrowLeft',l:'←',w:1},{c:'ArrowDown',l:'↓',w:1},{c:'ArrowRight',l:'→',w:1}],
+];
+
+// ══════════════════════════════════════════════════════════════════════════
+// Pavé numérique — CSS Grid avec spans
+// ══════════════════════════════════════════════════════════════════════════
+const NUMPAD_KEYS = [
+    {c:'NumLock',        l:'Num',  gr:'1',   gc:'1'},
+    {c:'NumpadDivide',   l:'/',    gr:'1',   gc:'2'},
+    {c:'NumpadMultiply', l:'×',    gr:'1',   gc:'3'},
+    {c:'NumpadSubtract', l:'−',    gr:'1',   gc:'4'},
+    {c:'Numpad7',        l:'7',    gr:'2',   gc:'1'},
+    {c:'Numpad8',        l:'8',    gr:'2',   gc:'2'},
+    {c:'Numpad9',        l:'9',    gr:'2',   gc:'3'},
+    {c:'NumpadAdd',      l:'+',    gr:'2/4', gc:'4'},  // span 2 rows
+    {c:'Numpad4',        l:'4',    gr:'3',   gc:'1'},
+    {c:'Numpad5',        l:'5',    gr:'3',   gc:'2'},
+    {c:'Numpad6',        l:'6',    gr:'3',   gc:'3'},
+    {c:'Numpad1',        l:'1',    gr:'4',   gc:'1'},
+    {c:'Numpad2',        l:'2',    gr:'4',   gc:'2'},
+    {c:'Numpad3',        l:'3',    gr:'4',   gc:'3'},
+    {c:'NumpadEnter',    l:'↵',    gr:'4/6', gc:'4'},  // span 2 rows
+    {c:'Numpad0',        l:'0',    gr:'5',   gc:'1/3'}, // span 2 cols
+    {c:'NumpadDecimal',  l:'.',    gr:'5',   gc:'3'},
+];
+
+// ══════════════════════════════════════════════════════════════════════════
+// Registre des layouts
+// ══════════════════════════════════════════════════════════════════════════
+const LAYOUTS = {
+    'azerty-pc':  { main: MAIN_AZERTY_PC,  nav: NAV_PC,  numpad: true },
+    'azerty-mac': { main: MAIN_AZERTY_MAC, nav: NAV_MAC, numpad: true },
+};
+
+function detectDefaultLayout() {
+    const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+    const ua = navigator.userAgent || '';
+    const isMac = /mac/i.test(platform) || /macintosh|mac os/i.test(ua);
+    return isMac ? 'azerty-mac' : 'azerty-pc';
+}
+
+const defaultLayoutKey = detectDefaultLayout();
+document.getElementById('layout-select').value = defaultLayoutKey;
+let currentLayout = LAYOUTS[defaultLayoutKey];
+const pressed = new Set();
+
+// ══════════════════════════════════════════════════════════════════════════
+// Rendu
+// ══════════════════════════════════════════════════════════════════════════
+function makeKey(code, label, width, isGap) {
+    const el = document.createElement('div');
+    if (isGap) {
+        el.className = 'kb-key kb-gap';
+        el.style.width = w(width);
+        return el;
+    }
+    el.className = 'kb-key' + (pressed.has(code) ? ' pressed' : '');
+    el.dataset.code = code;
+    el.textContent  = label;
+    el.style.width  = w(width);
+    return el;
+}
+
+function buildMain() {
+    const container = document.getElementById('kb-main');
+    container.innerHTML = '';
+    currentLayout.main.forEach(function (row) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'kb-row';
+        row.forEach(function (key) {
+            const isGap = key.c.startsWith('__');
+            rowEl.appendChild(makeKey(key.c, key.l, key.w, isGap));
+        });
+        container.appendChild(rowEl);
+    });
+}
+
+function buildNav() {
+    const container = document.getElementById('kb-nav');
+    container.innerHTML = '';
+    currentLayout.nav.forEach(function (row) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'kb-row';
+        row.forEach(function (key) {
+            const isGap = key.c.startsWith('__');
+            const el = makeKey(key.c, key.l, key.w, isGap);
+            rowEl.appendChild(el);
+        });
+        container.appendChild(rowEl);
+    });
+}
+
+function buildNumpad() {
+    const container = document.getElementById('kb-numpad');
+    container.innerHTML = '';
+    container.style.display = currentLayout.numpad ? 'grid' : 'none';
+    if (!currentLayout.numpad) return;
+
+    NUMPAD_KEYS.forEach(function (key) {
+        const el = document.createElement('div');
+        el.className = 'kb-key' + (pressed.has(key.c) ? ' pressed' : '');
+        el.dataset.code = key.c;
+        el.textContent  = key.l;
+        el.style.gridRow    = key.gr;
+        el.style.gridColumn = key.gc;
+        container.appendChild(el);
+    });
+}
+
+function countKeys() {
+    let total = 0;
+    currentLayout.main.forEach(function(row) {
+        row.forEach(function(k) { if (!k.c.startsWith('__')) total++; });
+    });
+    currentLayout.nav.forEach(function(row) {
+        row.forEach(function(k) { if (!k.c.startsWith('__')) total++; });
+    });
+    if (currentLayout.numpad) total += NUMPAD_KEYS.length;
+    return total;
+}
+
+function updateProgress() {
+    const total  = countKeys();
+    const tested = [...pressed].filter(function(c) { return c !== 'Fn'; }).size || pressed.size;
+    document.getElementById('tested-count').textContent = pressed.size;
+    document.getElementById('total-count').textContent  = total;
+    const pct = total > 0 ? (pressed.size / total * 100) : 0;
+    document.getElementById('progress-bar').style.width = Math.min(pct, 100) + '%';
+}
+
+function buildKeyboard() {
+    buildMain();
+    buildNav();
+    buildNumpad();
+    document.getElementById('tested-count').textContent = '0';
+    document.getElementById('total-count').textContent  = countKeys();
+    document.getElementById('progress-bar').style.width = '0%';
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Événements
+// ══════════════════════════════════════════════════════════════════════════
+document.addEventListener('keydown', function (e) {
+    e.preventDefault();
+
+    const code = e.code;
+    pressed.add(code);
+
+    const el = document.querySelector('.kb-key[data-code="' + CSS.escape(code) + '"]');
+    if (el) {
+        el.classList.add('pressed');
+        el.classList.add('active-flash');
+        setTimeout(function () { el.classList.remove('active-flash'); }, 120);
+    }
+
+    document.getElementById('last-key').textContent  = e.key === ' ' ? '[Espace]' : e.key;
+    document.getElementById('last-code').textContent = code;
+    document.getElementById('fn-note').style.display = 'none';
+
+    updateProgress();
+});
+
+// La touche fn sur Mac ne déclenche pas de keydown dans le navigateur
+// On l'affiche quand l'utilisateur clique sur sa représentation visuelle
+document.getElementById('kb-main').addEventListener('click', function(e) {
+    const key = e.target.closest('[data-code="Fn"]');
+    if (key) {
+        document.getElementById('fn-note').style.display = '';
+    }
+});
+
+document.getElementById('reset-btn').addEventListener('click', function () {
+    pressed.clear();
+    document.querySelectorAll('.kb-key').forEach(function (k) {
+        k.classList.remove('pressed');
+    });
+    document.getElementById('last-key').textContent  = '—';
+    document.getElementById('last-code').textContent = '—';
+    document.getElementById('fn-note').style.display = 'none';
+    updateProgress();
+});
+
+document.getElementById('layout-select').addEventListener('change', function () {
+    pressed.clear();
+    currentLayout = LAYOUTS[this.value];
+    buildKeyboard();
+    document.getElementById('last-key').textContent  = '—';
+    document.getElementById('last-code').textContent = '—';
+    document.getElementById('fn-note').style.display = 'none';
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+buildKeyboard();
+</script>
+{% endblock %}

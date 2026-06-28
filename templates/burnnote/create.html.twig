@@ -1,0 +1,411 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}BurnNote — Partager un secret{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">🔥</div>
+        <h1 class="hero-title">BurnNote</h1>
+        <p class="hero-subtitle">Partagez un secret via un lien à usage unique. Il s'autodétruit après lecture.</p>
+    </section>
+
+    <div class="container" style="max-width: 960px;">
+
+        {% if error is defined %}
+            <div class="alert alert-danger mb-4">{{ error }}</div>
+        {% endif %}
+
+        <div class="card-modern">
+            <form method="POST" action="{{ path('burnnote_create') }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('burnnote_create') }}">
+
+                <div class="mb-3">
+                    <label for="secret" class="form-label">Secret à partager</label>
+                    <textarea
+                        id="secret"
+                        name="secret"
+                        class="form-control"
+                        rows="4"
+                        placeholder="Mot de passe, token, clé SSH..."
+                        required
+                        maxlength="30000"
+                        autocomplete="off"
+                        spellcheck="false"
+                    ></textarea>
+                </div>
+
+                <!-- Générateur de passphrase -->
+                <div class="mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary btn-sm" id="gen-btn">
+                            <i class="fas fa-dice" aria-hidden="true"></i> Générer une passphrase
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="gen-config-toggle">
+                            <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <div id="gen-config" style="display:none;" class="p-3 mt-2" style="background: var(--color-bg-light); border-radius: 12px; border: 1px solid var(--color-border);">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Nombre de mots</label>
+                                <select id="gen-nb-mots" class="form-select form-select-sm">
+                                    <option value="2">2 mots</option>
+                                    <option value="3">3 mots</option>
+                                    <option value="4">4 mots</option>
+                                    <option value="5" selected>5 mots</option>
+                                    <option value="6">6 mots</option>
+                                    <option value="7">7 mots</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Séparateur</label>
+                                <select id="gen-sep" class="form-select form-select-sm">
+                                    <option value="random" selected>Aléatoire</option>
+                                    <option value="-">Tiret -</option>
+                                    <option value="_">Underscore _</option>
+                                    <option value=" ">Espace</option>
+                                    <option value="*">Étoile *</option>
+                                    <option value="+">Plus +</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Longueur min.</label>
+                                <select id="gen-longueur" class="form-select form-select-sm">
+                                    <option value="8">8 car.</option>
+                                    <option value="12">12 car.</option>
+                                    <option value="16">16 car.</option>
+                                    <option value="20" selected>20 car.</option>
+                                    <option value="30">30 car.</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Chiffres à la fin</label>
+                                <select id="gen-nb" class="form-select form-select-sm">
+                                    <option value="0">Aucun</option>
+                                    <option value="1">1 chiffre</option>
+                                    <option value="2" selected>2 chiffres</option>
+                                    <option value="3">3 chiffres</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Caractère spécial</label>
+                                <select id="gen-spec" class="form-select form-select-sm">
+                                    <option value="random" selected>Aléatoire</option>
+                                    <option value="none">Aucun</option>
+                                    <option value="$">$</option>
+                                    <option value="!">!</option>
+                                    <option value="#">#</option>
+                                    <option value="?">?</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Résultats</label>
+                                <select id="gen-count" class="form-select form-select-sm">
+                                    <option value="4" selected>4</option>
+                                    <option value="6">6</option>
+                                    <option value="8">8</option>
+                                    <option value="10">10</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex gap-3 flex-wrap align-items-center">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="gen-maj-debut" checked>
+                                        <label class="form-check-label" for="gen-maj-debut">Majuscule début de mot</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="gen-maj-alea">
+                                        <label class="form-check-label" for="gen-maj-alea">Majuscule aléatoire</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="gen-accents">
+                                        <label class="form-check-label" for="gen-accents">Caractères accentués</label>
+                                    </div>
+                                    <button type="button" id="gen-reset" class="btn btn-outline-secondary btn-sm ms-auto">
+                                        <i class="fas fa-undo" aria-hidden="true"></i> Réinitialiser
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Liste des passphrases générées -->
+                    <div id="gen-results" class="mt-2" style="display:none;"></div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label for="ttl" class="form-label mb-0">Expiration</label>
+                        <span class="burn-badge" id="ttl-display">24 heures</span>
+                    </div>
+                    <input type="range" id="ttl-slider" class="form-range" min="0" max="33" value="4" step="1">
+                    <input type="hidden" id="ttl" name="ttl" value="24">
+                    <div class="d-flex justify-content-between" style="font-size:0.75rem; color: var(--color-text-secondary);">
+                        <span>1 heure</span>
+                        <span>30 jours</span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label for="max_views" class="form-label mb-0">Vues maximum</label>
+                        <span class="burn-badge" id="views-display">1 vue</span>
+                    </div>
+                    <input type="range" id="max_views" name="max_views" class="form-range" min="1" max="101" value="1" step="1">
+                    <div class="d-flex justify-content-between" style="font-size:0.75rem; color: var(--color-text-secondary);">
+                        <span>1 vue</span>
+                        <span>Illimité</span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="passphrase" class="form-label">Passphrase <span class="text-muted" style="font-weight:normal;">(optionnelle)</span></label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input
+                            type="text"
+                            id="passphrase"
+                            name="passphrase"
+                            class="form-control font-monospace"
+                            placeholder="Facultatif — pour une protection renforcée"
+                            maxlength="128"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <button type="button" class="btn btn-secondary btn-sm text-nowrap" id="gen-passphrase-btn" title="Générer une passphrase">
+                            <i class="fas fa-dice" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div id="gen-passphrase-results" class="mt-2" style="display:none;"></div>
+                    <div class="form-text">Le destinataire devra saisir cette passphrase avant de pouvoir lire le secret.</div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-fire" aria-hidden="true"></i> Créer le lien
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+        <p class="text-muted text-center mt-3" style="font-size: 0.8rem;">
+            <i class="fas fa-lock" aria-hidden="true"></i>
+            Chiffré AES-256-GCM · Détruit après lecture · Hébergé sur infrastructure privée
+        </p>
+
+    </div>
+
+    <div class="modal fade" id="passphraseWarningModal" tabindex="-1"
+         aria-labelledby="passphraseWarningLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-hover);">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="passphraseWarningLabel" style="color: var(--color-text-primary);">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true" style="color: #f59e0b;"></i>
+                        Passphrase à transmettre séparément
+                    </h5>
+                </div>
+                <div class="modal-body" style="color: var(--color-text-secondary);">
+                    Vous avez protégé cette note par une passphrase. <strong style="color: var(--color-text-primary);">Notez-la maintenant — elle ne sera plus affichée une fois le lien créé.</strong>
+                    <br><br>
+                    Transmettez-la à votre destinataire par un canal différent du lien. Idéalement : lien par email, passphrase par SMS — ou l'inverse.
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" id="passphrase-modal-confirm">
+                        <i class="fas fa-check" aria-hidden="true"></i> J'ai compris, créer le lien
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block script %}
+<script nonce="{{ csp_nonce() }}">
+    // Cookie helpers
+    const COOKIE_KEY = 'toolbox_gen_config';
+    const GEN_DEFAULTS = {
+        nbMots: '5', sep: 'random', longueur: '20', nb: '2',
+        spec: 'random', count: '4', majDebut: true, majAlea: false, accents: false
+    };
+
+    function saveGenConfig() {
+        const cfg = {
+            nbMots:   document.getElementById('gen-nb-mots').value,
+            sep:      document.getElementById('gen-sep').value,
+            longueur: document.getElementById('gen-longueur').value,
+            nb:       document.getElementById('gen-nb').value,
+            spec:     document.getElementById('gen-spec').value,
+            count:    document.getElementById('gen-count').value,
+            majDebut: document.getElementById('gen-maj-debut').checked,
+            majAlea:  document.getElementById('gen-maj-alea').checked,
+            accents:  document.getElementById('gen-accents').checked,
+        };
+        document.cookie = COOKIE_KEY + '=' + encodeURIComponent(JSON.stringify(cfg)) + '; max-age=' + (365*24*3600) + '; path=/; SameSite=Lax';
+    }
+
+    function loadGenConfig() {
+        const match = document.cookie.split('; ').find(r => r.startsWith(COOKIE_KEY + '='));
+        if (!match) return;
+        try {
+            return JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
+        } catch(e) {}
+    }
+
+    function applyGenConfig(cfg) {
+        document.getElementById('gen-nb-mots').value    = cfg.nbMots;
+        document.getElementById('gen-sep').value        = cfg.sep;
+        document.getElementById('gen-longueur').value   = cfg.longueur;
+        document.getElementById('gen-nb').value         = cfg.nb;
+        document.getElementById('gen-spec').value       = cfg.spec;
+        document.getElementById('gen-count').value      = cfg.count;
+        document.getElementById('gen-maj-debut').checked = cfg.majDebut;
+        document.getElementById('gen-maj-alea').checked  = cfg.majAlea;
+        document.getElementById('gen-accents').checked   = cfg.accents;
+    }
+
+    function resetGenConfig() {
+        applyGenConfig(GEN_DEFAULTS);
+        saveGenConfig();
+    }
+
+    // Wiring des boutons (CSP : plus d'attributs onclick inline)
+    document.getElementById('gen-btn').addEventListener('click', () => generatePassphrase('secret'));
+    document.getElementById('gen-passphrase-btn').addEventListener('click', () => generatePassphrase('passphrase'));
+    document.getElementById('gen-config-toggle').addEventListener('click', toggleGenConfig);
+    document.getElementById('gen-reset').addEventListener('click', resetGenConfig);
+
+    // Persist on change
+    document.querySelectorAll('#gen-config select, #gen-config input[type=checkbox]').forEach(el => {
+        el.addEventListener('change', saveGenConfig);
+    });
+
+    // Restore on load
+    const savedCfg = loadGenConfig();
+    if (savedCfg) applyGenConfig(savedCfg);
+
+    // Générateur passphrase
+    function toggleGenConfig() {
+        const cfg = document.getElementById('gen-config');
+        cfg.style.display = cfg.style.display === 'none' ? 'block' : 'none';
+    }
+
+    let genTarget = 'secret';
+
+    const GEN_RESULTS_MAP = {
+        'secret':     'gen-results',
+        'passphrase': 'gen-passphrase-results',
+    };
+
+    async function generatePassphrase(targetId = 'secret') {
+        genTarget = targetId;
+        const btn = document.getElementById('gen-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Génération...';
+
+        const params = new URLSearchParams({
+            nb_mots:              document.getElementById('gen-nb-mots').value,
+            separateur:           document.getElementById('gen-sep').value,
+            longueur_minimale:    document.getElementById('gen-longueur').value,
+            longueur_nombre:      document.getElementById('gen-nb').value,
+            caractere_special:    document.getElementById('gen-spec').value,
+            count:                document.getElementById('gen-count').value,
+            majuscule_debut:      document.getElementById('gen-maj-debut').checked ? '1' : '0',
+            majuscule_aleatoire:  document.getElementById('gen-maj-alea').checked ? '1' : '0',
+            caracteres_accentues: document.getElementById('gen-accents').checked ? '1' : '0',
+        });
+
+        try {
+            const res  = await fetch('https://passphrase.fr/api/passwords?' + params);
+            const data = await res.json();
+            const list = document.getElementById(GEN_RESULTS_MAP[genTarget]);
+            list.style.display = 'block';
+
+            const grid = document.createElement('div');
+            grid.className = 'gen-results-grid';
+
+            data.passwords.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'gen-result-item';
+                item.title = 'Cliquer pour utiliser';
+                item.addEventListener('click', () => usePassphrase(item));
+
+                const span = document.createElement('span');
+                span.className = 'gen-result-text';
+                span.textContent = p.password;
+
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-arrow-right gen-result-arrow';
+                icon.setAttribute('aria-hidden', 'true');
+
+                item.appendChild(span);
+                item.appendChild(icon);
+                grid.appendChild(item);
+            });
+
+            list.innerHTML = '';
+            list.appendChild(grid);
+        } catch(e) {
+            const errList = document.getElementById(GEN_RESULTS_MAP[genTarget]);
+            errList.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Impossible de contacter passphrase.fr</p>';
+            errList.style.display = 'block';
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-dice"></i> Générer une passphrase';
+    }
+
+    function usePassphrase(el) {
+        document.getElementById(genTarget).value = el.querySelector('.gen-result-text').textContent;
+        document.getElementById(GEN_RESULTS_MAP[genTarget]).style.display = 'none';
+    }
+
+    // Interception du submit si passphrase renseignée
+    const burnForm = document.querySelector('form');
+    let formConfirmed = false;
+    burnForm.addEventListener('submit', function (e) {
+        if (formConfirmed) return;
+        if (document.getElementById('passphrase').value.trim() === '') return;
+        e.preventDefault();
+        new bootstrap.Modal(document.getElementById('passphraseWarningModal')).show();
+    });
+    document.getElementById('passphrase-modal-confirm').addEventListener('click', function () {
+        bootstrap.Modal.getInstance(document.getElementById('passphraseWarningModal')).hide();
+        formConfirmed = true;
+        burnForm.requestSubmit();
+    });
+
+    const TTL_STEPS = [1, 6, 12, 18, 24];
+    for (let d = 2; d <= 30; d++) TTL_STEPS.push(d * 24);
+
+    const ttlSlider   = document.getElementById('ttl-slider');
+    const ttlHidden   = document.getElementById('ttl');
+    const ttlDisplay  = document.getElementById('ttl-display');
+    const viewSlider  = document.getElementById('max_views');
+    const viewDisplay = document.getElementById('views-display');
+
+    function formatTtl(hours) {
+        if (hours < 24) return hours + ' heure' + (hours > 1 ? 's' : '');
+        const days = hours / 24;
+        return days + ' jour' + (days > 1 ? 's' : '');
+    }
+
+    function formatViews(val) {
+        val = parseInt(val);
+        if (val >= 101) return 'Illimité';
+        return val + ' vue' + (val > 1 ? 's' : '');
+    }
+
+    ttlSlider.addEventListener('input', () => {
+        const hours = TTL_STEPS[parseInt(ttlSlider.value)];
+        ttlHidden.value = hours;
+        ttlDisplay.textContent = formatTtl(hours);
+    });
+
+    viewSlider.addEventListener('input', () => {
+        viewDisplay.textContent = formatViews(viewSlider.value);
+    });
+</script>
+{% endblock %}

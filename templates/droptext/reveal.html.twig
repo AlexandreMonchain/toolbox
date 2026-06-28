@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}DropText — Révéler la note{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">📄</div>
+    <h1 class="hero-title">Note prête à être lue</h1>
+    <p class="hero-subtitle">
+        Cliquez pour afficher le contenu.{% if note.maxReads is not null %} Cette action consomme une lecture.{% endif %}
+    </p>
+</section>
+
+<div class="container" style="max-width:480px;">
+    <div class="card-modern">
+        <div class="d-flex flex-wrap gap-3 align-items-center mb-4" style="font-size:0.85rem; color:var(--color-text-secondary);">
+            <span>
+                <i class="fas fa-clock fa-fw" aria-hidden="true"></i>
+                Expire le {{ note.expiresAt|date('d/m/Y à H:i') }}
+            </span>
+            {% if note.maxReads is not null %}
+                {% if note.readsRemaining > 0 %}
+                <span style="color:var(--color-warning);">
+                    <i class="fas fa-eye fa-fw" aria-hidden="true"></i>
+                    {{ note.readsRemaining }} lecture{{ note.readsRemaining > 1 ? 's' : '' }} restante{{ note.readsRemaining > 1 ? 's' : '' }}
+                </span>
+                {% else %}
+                <span style="color:var(--color-danger);">
+                    <i class="fas fa-fire fa-fw" aria-hidden="true"></i>
+                    Dernière lecture — la note sera détruite
+                </span>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <form method="post" action="{{ path('droptext_reveal', {token: token}) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('droptext_reveal_' ~ token) }}">
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-eye" aria-hidden="true"></i> Révéler le contenu
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

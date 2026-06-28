@@ -9,6 +9,17 @@
 /vendor/
 ###< symfony/framework-bundle ###
 
+###> local config ###
+/.env.dev
+/.env.docker
+/.claude/
+/CLAUDE.md
+###< local config ###
+
+###> documentation (privée pour l'instant) ###
+/docs/
+###< documentation ###
+
 ###> phpunit/phpunit ###
 /phpunit.xml
 /.phpunit.cache/

@@ -1,24 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
     <head>
         <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
-
-        {% block javascripts %}
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
-        {% endblock %}
-
-        {% set frankenphpHotReload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
-        {% if frankenphpHotReload %}
-        <meta name="frankenphp-hot-reload:url" content="{{ frankenphpHotReload }}">
-        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
-        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
-        {% endif %}
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="description" content="Boîte à outils pour RSI et sysadmins. PwPush, générateur CSR, calculateur réseau et plus encore.">
+        <meta name="robots" content="index, follow">
+        <meta name="author" content="Alexandre Monchain">
+        <meta property="og:title" content="{% block og_title %}Toolbox — Outils pour RSI & sysadmins{% endblock %}">
+        <meta property="og:description" content="{% block og_description %}Boîte à outils open source pour RSI et sysadmins.{% endblock %}">
+        <meta property="og:url" content="{{ app.request.uri }}">
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="Toolbox">
+        <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+        <!-- Theme: set immediately to avoid flash of wrong theme -->
+        <script nonce="{{ csp_nonce() }}">(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
+        <!-- Google Fonts: Inter -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+        <title>{% block title %}Toolbox{% endblock %}</title>
+        <link rel="stylesheet" href="{{ asset('bootstrap.min.css') }}">
+        <link rel="stylesheet" href="{{ asset('app.css') }}">
     </head>
     <body>
-        {% block body %}{% endblock %}
+        <nav class="navbar-modern">
+            <div class="nav-container">
+                <a class="nav-logo" href="{{ path('app_home') }}">
+                    <img src="{{ asset('favicon.svg') }}" width="26" height="26" alt="" aria-hidden="true"> Toolbox
+                </a>
+                <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="nav-menu" id="navMenu">
+                    <a class="nav-link" href="{{ path('app_home') }}">Accueil</a>
+                    <a class="nav-link" href="https://github.com/AlexandreMonchain/Toolbox" target="_blank" rel="noopener" aria-label="GitHub">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <button id="theme-toggle" class="nav-theme-toggle" aria-label="Changer de thème" title="Thème clair / sombre">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            {% block body %}{% endblock %}
+        </main>
+
+        <footer class="footer-modern">
+            <div class="footer-container">
+                <div class="footer-content">
+                    <p class="footer-text">
+                        <strong>Toolbox</strong> v{{ app_version }} • © 2026 <a href="https://alexandremonchain.fr" target="_blank" rel="noopener">Alexandre MONCHAIN</a>
+                    </p>
+                    <p class="footer-links">
+                        <a href="https://github.com/AlexandreMonchain/Toolbox" target="_blank" rel="noopener" aria-label="GitHub">
+                            <i class="fab fa-github"></i>
+                        </a>
+                        <span class="separator">•</span>
+                        <a href="https://github.com/AlexandreMonchain/Toolbox/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+                    </p>
+                </div>
+            </div>
+        </footer>
+
+        <script src="{{ asset('bootstrap.min.js') }}" defer></script>
+        <script nonce="{{ csp_nonce() }}">
+            document.getElementById('nav-toggle').addEventListener('click', function() {
+                document.getElementById('navMenu').classList.toggle('active');
+            });
+            document.addEventListener('click', function(e) {
+                const nav = document.querySelector('.navbar-modern');
+                if (!nav.contains(e.target)) {
+                    document.getElementById('navMenu').classList.remove('active');
+                }
+            });
+
+            (function() {
+                const btn = document.getElementById('theme-toggle');
+                const icon = btn.querySelector('i');
+                function applyTheme(theme) {
+                    if (theme === 'dark') {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                        icon.className = 'fas fa-sun';
+                    } else {
+                        document.documentElement.removeAttribute('data-theme');
+                        icon.className = 'fas fa-moon';
+                    }
+                }
+                applyTheme(localStorage.getItem('theme') || 'light');
+                btn.addEventListener('click', function() {
+                    const current = document.documentElement.getAttribute('data-theme');
+                    const next = current === 'dark' ? 'light' : 'dark';
+                    localStorage.setItem('theme', next);
+                    applyTheme(next);
+                });
+            })();
+        </script>
+        {% block script %}{% endblock %}
     </body>
 </html>

@@ -1,0 +1,273 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Générateur de CSR — Toolbox{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">📜</div>
+        <h1 class="hero-title">Générateur de CSR</h1>
+        <p class="hero-subtitle">Générez vos Certificate Signing Requests pour certificats TLS. RSA 2048 bits, SHA-256. La clé privée n'est jamais stockée.</p>
+    </section>
+
+    <meta name="csrf-csr" content="{{ csrf_token('csr_generate') }}">
+
+    <div class="container" style="max-width:760px;">
+
+        {# ── Identité ──────────────────────────────────────────────────────────── #}
+        <div class="card-modern mb-4">
+            <h2 style="font-size:1rem; font-weight:600; margin-bottom:1.25rem;">
+                <i class="fas fa-id-card" aria-hidden="true"></i> Identité du certificat
+            </h2>
+
+            <div class="mb-3">
+                <label class="form-label" for="csr-cn">Common Name (CN) <span class="text-danger">*</span></label>
+                <input type="text" id="csr-cn" class="form-control font-monospace"
+                    placeholder="serveur.domaine.fr" autocomplete="off" spellcheck="false">
+                <div class="form-text">FQDN principal du serveur (ex : <code>web01.domaine.local</code>)</div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-8">
+                    <label class="form-label" for="csr-o">Organization (O) <span class="text-danger">*</span></label>
+                    <input type="text" id="csr-o" class="form-control" placeholder="Mon Entreprise SARL" autocomplete="off">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="csr-ou">Organizational Unit (OU)</label>
+                    <input type="text" id="csr-ou" class="form-control" placeholder="DSI" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-5">
+                    <label class="form-label" for="csr-l">Ville (L) <span class="text-danger">*</span></label>
+                    <input type="text" id="csr-l" class="form-control" placeholder="Paris" autocomplete="off">
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="csr-st">Région (ST) <span class="text-danger">*</span></label>
+                    <input type="text" id="csr-st" class="form-control" placeholder="Île-de-France" autocomplete="off">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="csr-c">Pays <span class="text-danger">*</span></label>
+                    <input type="text" id="csr-c" class="form-control font-monospace text-uppercase"
+                        placeholder="FR" maxlength="2" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="mb-0">
+                <label class="form-label" for="csr-email">Email</label>
+                <input type="email" id="csr-email" class="form-control"
+                    placeholder="informatique@domaine.com" autocomplete="off">
+            </div>
+        </div>
+
+        {# ── SANs ──────────────────────────────────────────────────────────────── #}
+        <div class="card-modern mb-4">
+            <h2 style="font-size:1rem; font-weight:600; margin-bottom:0.25rem;">
+                <i class="fas fa-list" aria-hidden="true"></i> Subject Alternative Names — DNS
+            </h2>
+            <p class="form-text mb-3">Tous les noms par lesquels ce serveur sera accédé (courts et FQDN). Le CN est ajouté automatiquement.</p>
+            <div id="sans-list"></div>
+            <button type="button" id="add-san" class="btn btn-sm btn-outline-secondary mt-2">
+                <i class="fas fa-plus" aria-hidden="true"></i> Ajouter un nom DNS
+            </button>
+        </div>
+
+        {# ── Générer ───────────────────────────────────────────────────────────── #}
+        <div id="error-box" class="alert alert-danger mb-3" style="display:none;"></div>
+        <div class="d-grid mb-4">
+            <button type="button" id="generate-btn" class="btn btn-primary btn-lg">
+                <i class="fas fa-cog" aria-hidden="true"></i> Générer le CSR
+            </button>
+        </div>
+
+        {# ── Résultats ─────────────────────────────────────────────────────────── #}
+        <div id="results" style="display:none;">
+
+            <div class="card-modern mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 style="font-size:1rem; font-weight:600; margin:0;">
+                        <i class="fas fa-file-code" aria-hidden="true"></i> Certificate Signing Request
+                    </h2>
+                    <button id="download-csr" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-download" aria-hidden="true"></i> Télécharger .csr
+                    </button>
+                </div>
+                <textarea id="csr-output" class="form-control font-monospace" rows="10" readonly
+                    style="font-size:0.78rem; resize:none;"></textarea>
+                <div class="form-text mt-1">À envoyer à votre CA (Active Directory CS, Let's Encrypt, DigiCert…) pour obtenir le certificat signé.</div>
+            </div>
+
+            <div class="card-modern mb-4" style="border: 1px solid #ffc107;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 style="font-size:1rem; font-weight:600; margin:0;">
+                        <i class="fas fa-key" aria-hidden="true"></i> Clé privée
+                    </h2>
+                    <button id="download-key" class="btn btn-sm btn-warning">
+                        <i class="fas fa-download" aria-hidden="true"></i> Télécharger .key
+                    </button>
+                </div>
+                <div class="alert alert-warning mb-3" style="font-size:0.875rem; margin-bottom:1rem;">
+                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    <strong> Copiez ou téléchargez cette clé maintenant.</strong>
+                    Elle n'est pas stockée sur le serveur et ne peut pas être régénérée.
+                </div>
+                <textarea id="key-output" class="form-control font-monospace" rows="10" readonly
+                    style="font-size:0.78rem; resize:none;"></textarea>
+            </div>
+
+        </div>
+
+    </div>
+{% endblock %}
+
+{% block script %}
+<script nonce="{{ csp_nonce() }}">
+// ── localStorage — champs stables ─────────────────────────────────────────────
+const LS = { prefix: 'csr_', fields: ['csr-o', 'csr-ou', 'csr-l', 'csr-st', 'csr-c', 'csr-email'] };
+
+LS.fields.forEach(function (id) {
+    const el  = document.getElementById(id);
+    const val = localStorage.getItem(LS.prefix + id);
+    if (val) el.value = val;
+    el.addEventListener('input', function () {
+        localStorage.setItem(LS.prefix + id, this.value);
+    });
+});
+
+document.getElementById('csr-c').addEventListener('input', function () {
+    this.value = this.value.toUpperCase();
+    localStorage.setItem(LS.prefix + 'csr-c', this.value);
+});
+
+// ── SANs dynamiques ───────────────────────────────────────────────────────────
+let sanSeq = 0;
+
+function addSan(value) {
+    sanSeq++;
+    const id  = 'san-' + sanSeq;
+    const row = document.createElement('div');
+    row.className = 'd-flex gap-2 mb-2';
+    row.id = id;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control font-monospace';
+    input.placeholder = 'serveur.domaine.fr';
+    input.autocomplete = 'off';
+    input.spellcheck   = false;
+    input.dataset.san  = '1';
+    if (value) input.value = value;
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'btn btn-outline-danger btn-sm px-2';
+    del.setAttribute('aria-label', 'Supprimer');
+    del.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
+    del.addEventListener('click', function () { row.remove(); });
+
+    row.appendChild(input);
+    row.appendChild(del);
+    document.getElementById('sans-list').appendChild(row);
+    if (!value) input.focus();
+}
+
+// Auto-remplissage du premier SAN avec le CN
+document.getElementById('csr-cn').addEventListener('blur', function () {
+    const cn = this.value.trim();
+    if (!cn) return;
+    const existing = document.querySelectorAll('[data-san]');
+    if (existing.length === 0) {
+        addSan(cn);
+    } else if (existing.length === 1 && existing[0].value.trim() === '') {
+        existing[0].value = cn;
+    }
+});
+
+document.getElementById('add-san').addEventListener('click', function () { addSan(''); });
+
+// ── Génération ────────────────────────────────────────────────────────────────
+document.getElementById('generate-btn').addEventListener('click', async function () {
+    const errBox = document.getElementById('error-box');
+    errBox.style.display = 'none';
+
+    const cn    = document.getElementById('csr-cn').value.trim();
+    const o     = document.getElementById('csr-o').value.trim();
+    const ou    = document.getElementById('csr-ou').value.trim();
+    const l     = document.getElementById('csr-l').value.trim();
+    const st    = document.getElementById('csr-st').value.trim();
+    const c     = document.getElementById('csr-c').value.trim().toUpperCase();
+    const email = document.getElementById('csr-email').value.trim();
+    const sans  = Array.from(document.querySelectorAll('[data-san]'))
+        .map(function (i) { return i.value.trim(); })
+        .filter(function (v) { return v !== ''; });
+
+    if (!cn || !o || !l || !st || !c) {
+        errBox.textContent = 'Veuillez remplir tous les champs obligatoires (*).';
+        errBox.style.display = 'block';
+        return;
+    }
+    if (c.length !== 2) {
+        errBox.textContent = 'Le pays doit être un code ISO à 2 lettres (ex : FR).';
+        errBox.style.display = 'block';
+        return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Génération en cours…';
+
+    try {
+        const resp = await fetch('{{ path('csr_generate') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-csr"]').content,
+            },
+            body: JSON.stringify({ cn, o, ou, l, st, c, email, sans }),
+        });
+
+        const json = await resp.json();
+
+        if (!resp.ok) {
+            errBox.textContent = json.error ?? 'Erreur serveur.';
+            errBox.style.display = 'block';
+            return;
+        }
+
+        document.getElementById('csr-output').value = json.csr;
+        document.getElementById('key-output').value  = json.key;
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch (e) {
+        errBox.textContent = 'Erreur réseau. Vérifiez votre connexion.';
+        errBox.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-cog" aria-hidden="true"></i> Générer le CSR';
+    }
+});
+
+// ── Téléchargements ───────────────────────────────────────────────────────────
+function download(content, filename) {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function safeName() {
+    return (document.getElementById('csr-cn').value.trim().replace(/[^a-zA-Z0-9._-]/g, '_') || 'server');
+}
+
+document.getElementById('download-csr').addEventListener('click', function () {
+    download(document.getElementById('csr-output').value, safeName() + '.csr');
+});
+document.getElementById('download-key').addEventListener('click', function () {
+    download(document.getElementById('key-output').value, safeName() + '.key');
+});
+</script>
+{% endblock %}

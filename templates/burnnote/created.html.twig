@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}BurnNote — Lien créé{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">✅</div>
+        <h1 class="hero-title">Lien créé</h1>
+        <p class="hero-subtitle">
+            Copiez ce lien et envoyez-le à votre destinataire.
+            {% if maxViews >= 9223372036854775807 %}
+                Il peut être ouvert un nombre illimité de fois jusqu'à expiration.
+            {% elseif maxViews == 1 %}
+                Il ne pourra être ouvert qu'une seule fois.
+            {% else %}
+                Il pourra être ouvert {{ maxViews }} fois.
+            {% endif %}
+        </p>
+    </section>
+
+    <div class="container" style="max-width: 640px;">
+
+        <div class="card-modern">
+
+            <label class="form-label">Votre lien sécurisé</label>
+            <div class="d-flex gap-2 align-items-center">
+                <input
+                    type="text"
+                    id="burn-url"
+                    class="form-control"
+                    value="{{ url }}"
+                    readonly
+                >
+                <button class="btn btn-secondary" id="copy-btn" title="Copier">
+                    <i class="fas fa-copy" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{{ path('burnnote_index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Créer un autre lien
+                </a>
+            </div>
+
+        </div>
+
+        <p class="text-muted text-center mt-3" style="font-size: 0.8rem;">
+            <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+            Ce lien ne vous sera plus affiché. Copiez-le maintenant.
+        </p>
+    </div>
+{% endblock %}
+
+{% block script %}
+<script nonce="{{ csp_nonce() }}">
+    const input = document.getElementById('burn-url');
+    const btn   = document.getElementById('copy-btn');
+
+    input.addEventListener('click', () => input.select());
+
+    btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(input.value).then(() => {
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-secondary');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-copy"></i>';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            }, 2000);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,572 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Comparateur de texte — Toolbox{% endblock %}
+
+{% block body %}
+<section class="hero-section" style="padding-bottom:0.75rem;">
+    <div class="hero-icon">🔍</div>
+    <h1 class="hero-title">Comparateur de texte</h1>
+    <p class="hero-subtitle">Vue côte à côte avec mise en évidence des différences — mot à mot.</p>
+</section>
+
+<div class="diff-page">
+
+    {# ── Zones de saisie ────────────────────────────────────────────── #}
+    <div class="diff-inputs-row">
+        <div class="diff-input-wrap">
+            <label class="diff-input-label">
+                <span class="diff-dot diff-dot-del"></span>
+                Texte A — original
+                <span id="lines-a" class="diff-line-count">(0 lignes)</span>
+            </label>
+            <textarea id="text-a" class="form-control diff-textarea" placeholder="Collez le texte original ici…" spellcheck="false"></textarea>
+        </div>
+        <div class="diff-input-wrap">
+            <label class="diff-input-label">
+                <span class="diff-dot diff-dot-ins"></span>
+                Texte B — modifié
+                <span id="lines-b" class="diff-line-count">(0 lignes)</span>
+            </label>
+            <textarea id="text-b" class="form-control diff-textarea" placeholder="Collez le texte modifié ici…" spellcheck="false"></textarea>
+        </div>
+    </div>
+
+    {# ── Contrôles ───────────────────────────────────────────────────── #}
+    <div class="diff-controls">
+        <label class="diff-check"><input type="checkbox" id="opt-whitespace"> Ignorer les espaces</label>
+        <label class="diff-check"><input type="checkbox" id="opt-case"> Ignorer la casse</label>
+        <label class="diff-check"><input type="checkbox" id="opt-context" checked> Contexte seul</label>
+        <div class="diff-stats" id="diff-stats" style="display:none;">
+            <span class="diff-pill pill-ins" id="stat-ins">+0</span>
+            <span class="diff-pill pill-del" id="stat-del">−0</span>
+            <span class="diff-pill pill-eq"  id="stat-eq">=0</span>
+        </div>
+        <div class="ms-auto d-flex gap-2">
+            <button type="button" id="copy-btn" class="btn btn-sm btn-outline-secondary" style="display:none;">
+                <i class="fas fa-copy" aria-hidden="true"></i> Copier
+            </button>
+            <button type="button" id="clear-btn" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-trash" aria-hidden="true"></i> Effacer
+            </button>
+        </div>
+    </div>
+
+    {# ── Vue diff ────────────────────────────────────────────────────── #}
+    <div class="diff-view-wrap card-modern" id="diff-view-wrap">
+
+        <div id="diff-placeholder" class="diff-empty">
+            <i class="fas fa-code-compare" aria-hidden="true" style="font-size:2.5rem; opacity:0.12;"></i>
+            <p>Saisissez du texte dans les deux zones pour voir les différences</p>
+        </div>
+
+        <div id="diff-identical" class="diff-empty" style="display:none;">
+            <i class="fas fa-check-circle" aria-hidden="true" style="font-size:2rem; color:#10B981;"></i>
+            <p style="color:var(--color-text-secondary);">Les deux textes sont identiques.</p>
+        </div>
+
+        {# En-têtes des colonnes #}
+        <div id="diff-header" class="diff-col-header" style="display:none;">
+            <span class="diff-col-ln"></span>
+            <span class="diff-col-title diff-col-del"><span class="diff-dot diff-dot-del"></span> Texte A</span>
+            <span class="diff-col-ln"></span>
+            <span class="diff-col-title diff-col-ins"><span class="diff-dot diff-dot-ins"></span> Texte B</span>
+        </div>
+
+        <div id="diff-scroll" class="diff-scroll" style="display:none;">
+            <table class="diff-table" id="diff-table">
+                <colgroup>
+                    <col class="col-ln">
+                    <col class="col-content">
+                    <col class="col-ln">
+                    <col class="col-content">
+                </colgroup>
+                <tbody id="diff-tbody"></tbody>
+            </table>
+        </div>
+
+        <p id="diff-warn" style="display:none; font-size:0.78rem; color:var(--color-text-secondary); padding:0.5rem 1rem; margin:0;">
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Comparaison limitée aux 3 000 premières lignes par côté.
+        </p>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+/* ── Page layout ──────────────────────────────────────────────────────── */
+.diff-page {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* ── Inputs ───────────────────────────────────────────────────────────── */
+.diff-inputs-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+@media (max-width: 640px) { .diff-inputs-row { grid-template-columns: 1fr; } }
+
+.diff-input-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.35rem;
+}
+.diff-line-count { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.diff-textarea {
+    height: 140px;
+    resize: vertical;
+    font-family: 'Courier New', monospace !important;
+    font-size: 0.78rem !important;
+    line-height: 1.5 !important;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+.diff-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.diff-check {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.diff-stats { display: flex; gap: 0.4rem; align-items: center; }
+.diff-pill {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 9999px;
+}
+.pill-ins { background: #DCFCE7; color: #15803D; }
+.pill-del { background: #FEE2E2; color: #991B1B; }
+.pill-eq  { background: var(--color-bg-light); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+[data-theme="dark"] .pill-ins { background: #052E16; color: #4ADE80; }
+[data-theme="dark"] .pill-del { background: #2C0A0A; color: #F87171; }
+
+/* ── Diff view wrapper ────────────────────────────────────────────────── */
+.diff-view-wrap {
+    padding: 0 !important;
+    overflow: hidden;
+    min-height: 200px;
+}
+.diff-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+/* ── Column headers ───────────────────────────────────────────────────── */
+.diff-col-header {
+    display: grid;
+    grid-template-columns: 48px 1fr 48px 1fr;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-light);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.diff-col-ln { padding: 0.4rem 0.5rem; }
+.diff-col-title {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-text-secondary);
+}
+
+/* ── Scroll area ──────────────────────────────────────────────────────── */
+.diff-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(100vh - 420px);
+    min-height: 300px;
+}
+
+/* ── Table ────────────────────────────────────────────────────────────── */
+.diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: 'Courier New', monospace;
+    font-size: 0.77rem;
+    line-height: 1.55;
+}
+.col-ln      { width: 48px; }
+.col-content { width: calc(50% - 48px); }
+
+.diff-table td {
+    padding: 0;
+    vertical-align: top;
+    border: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+.diff-table .td-ln {
+    padding: 3px 8px 3px 4px;
+    text-align: right;
+    color: var(--color-text-secondary);
+    opacity: 0.45;
+    font-size: 0.68rem;
+    user-select: none;
+    border-right: 2px solid var(--color-border);
+    vertical-align: top;
+    width: 48px;
+    white-space: nowrap;
+}
+.diff-table .td-code {
+    padding: 3px 0.75rem;
+}
+
+/* ── Row types ────────────────────────────────────────────────────────── */
+tr.row-del .td-ln-l,
+tr.row-del .td-code-l  { background: rgba(220, 38, 38, 0.07); }
+tr.row-ins .td-ln-r,
+tr.row-ins .td-code-r  { background: rgba(22, 163, 74, 0.07); }
+tr.row-chg .td-ln-l,
+tr.row-chg .td-code-l  { background: rgba(220, 38, 38, 0.07); }
+tr.row-chg .td-ln-r,
+tr.row-chg .td-code-r  { background: rgba(22, 163, 74, 0.07); }
+tr.row-sep td { background: var(--color-bg-light); color: var(--color-text-secondary); opacity: 0.5; font-style: italic; font-size: 0.7rem; padding: 2px 0.5rem; }
+tr.row-eq .td-code { color: var(--color-text-secondary); opacity: 0.55; }
+
+[data-theme="dark"] tr.row-del .td-ln-l,
+[data-theme="dark"] tr.row-del .td-code-l  { background: rgba(248, 113, 113, 0.07); }
+[data-theme="dark"] tr.row-ins .td-ln-r,
+[data-theme="dark"] tr.row-ins .td-code-r  { background: rgba(74, 222, 128, 0.07); }
+[data-theme="dark"] tr.row-chg .td-ln-l,
+[data-theme="dark"] tr.row-chg .td-code-l  { background: rgba(248, 113, 113, 0.07); }
+[data-theme="dark"] tr.row-chg .td-ln-r,
+[data-theme="dark"] tr.row-chg .td-code-r  { background: rgba(74, 222, 128, 0.07); }
+
+/* ── Inline word-level highlights ─────────────────────────────────────── */
+.w-del {
+    background: rgba(220, 38, 38, 0.55);
+    border-radius: 3px;
+    padding: 1px 1px;
+    color: #7f1111;
+}
+.w-ins {
+    background: rgba(22, 163, 74, 0.45);
+    border-radius: 3px;
+    padding: 1px 1px;
+    color: #0a4a22;
+}
+[data-theme="dark"] .w-del { background: rgba(248, 113, 113, 0.45); color: #fca5a5; }
+[data-theme="dark"] .w-ins { background: rgba(74, 222, 128, 0.35); color: #86efac; }
+
+/* ── Dot indicators ───────────────────────────────────────────────────── */
+.diff-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.diff-dot-del { background: #DC2626; }
+.diff-dot-ins { background: #16A34A; }
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+const MAX_LINES  = 3000;
+const MAX_INLINE = 2000;  // longueur max d'une ligne pour le diff mot-à-mot (anti-DoS)
+const CTX        = 3;     // lignes de contexte
+let debounceT   = null;
+
+// ── LCS diff (lignes) ─────────────────────────────────────────────────────
+function lcs(a, b) {
+    const m = a.length, n = b.length;
+    const dp = [];
+    for (let i = 0; i <= m; i++) dp.push(new Uint16Array(n + 1));
+    for (let i = m - 1; i >= 0; i--)
+        for (let j = n - 1; j >= 0; j--)
+            dp[i][j] = a[i] === b[j] ? dp[i+1][j+1] + 1 : Math.max(dp[i+1][j], dp[i][j+1]);
+
+    const ops = [];
+    let i = 0, j = 0;
+    while (i < m || j < n) {
+        if (i < m && j < n && a[i] === b[j]) { ops.push({t:'=', l:a[i]}); i++; j++; }
+        else if (j < n && (i >= m || dp[i+1][j] <= dp[i][j+1])) { ops.push({t:'+', l:b[j]}); j++; }
+        else { ops.push({t:'-', l:a[i]}); i++; }
+    }
+    return ops;
+}
+
+// ── Diff inline (token level) ─────────────────────────────────────────────
+function diffInline(a, b) {
+    // Garde-fou anti-DoS : le LCS mot-à-mot est O(n*m). Sur une ligne très longue
+    // (fichier minifié, blob base64, longue ligne de log) la tokenisation produit
+    // des dizaines de milliers de tokens → allocation de plusieurs Go et freeze de
+    // l'onglet. Au-delà du seuil, on marque la ligne entière comme modifiée sans
+    // coloration mot-à-mot.
+    if (a.length > MAX_INLINE || b.length > MAX_INLINE) {
+        return [{t:'-', l:a}, {t:'+', l:b}];
+    }
+    const tokA = a.match(/\w+|\W/g) || [''];
+    const tokB = b.match(/\w+|\W/g) || [''];
+    return lcs(tokA, tokB);
+}
+
+// ── Aligner les ops en paires côte à côte ─────────────────────────────────
+// Le LCS peut produire '+' avant '-' : on collecte dans les deux ordres.
+function align(ops) {
+    const rows = [];
+    let i = 0;
+    while (i < ops.length) {
+        if (ops[i].t === '=') { rows.push({type:'eq', l:ops[i].l, r:ops[i].r}); i++; }
+        else {
+            const dels = [], ins = [];
+            while (i < ops.length && (ops[i].t === '-' || ops[i].t === '+')) {
+                if (ops[i].t === '-') dels.push(ops[i].l);
+                else                  ins.push(ops[i].r);
+                i++;
+            }
+            const max = Math.max(dels.length, ins.length);
+            for (let j = 0; j < max; j++) {
+                const ld = j < dels.length ? dels[j] : null;
+                const li = j < ins.length  ? ins[j]  : null;
+                rows.push({ type: ld !== null && li !== null ? 'chg' : ld !== null ? 'del' : 'ins', l: ld, r: li });
+            }
+        }
+    }
+    return rows;
+}
+
+// ── Construire un nœud de ligne inline ────────────────────────────────────
+// Côté gauche (l) : affiche '=' et '-' (supprimés en surbrillance)
+// Côté droit  (r) : affiche '=' et '+' (ajoutés en surbrillance)
+function inlineNode(ops, side) {
+    const frag = document.createDocumentFragment();
+    ops.forEach(function(op) {
+        if (side === 'l' && op.t === '+') return;
+        if (side === 'r' && op.t === '-') return;
+        const sp = document.createElement('span');
+        sp.textContent = op.l;
+        if (side === 'l' && op.t === '-') sp.className = 'w-del';
+        if (side === 'r' && op.t === '+') sp.className = 'w-ins';
+        frag.appendChild(sp);
+    });
+    return frag;
+}
+
+// ── Rendu ─────────────────────────────────────────────────────────────────
+function render() {
+    let rawA = document.getElementById('text-a').value;
+    let rawB = document.getElementById('text-b').value;
+
+    // Compteurs
+    document.getElementById('lines-a').textContent = '(' + (rawA ? rawA.split('\n').length : 0) + ' lignes)';
+    document.getElementById('lines-b').textContent = '(' + (rawB ? rawB.split('\n').length : 0) + ' lignes)';
+
+    const ph  = document.getElementById('diff-placeholder');
+    const idc = document.getElementById('diff-identical');
+    const scr = document.getElementById('diff-scroll');
+    const hdr = document.getElementById('diff-header');
+    const wrn = document.getElementById('diff-warn');
+    const statsEl = document.getElementById('diff-stats');
+    const copyBtn = document.getElementById('copy-btn');
+
+    function showEmpty(which) {
+        ph.style.display  = which === 'ph' ? '' : 'none';
+        idc.style.display = which === 'id' ? '' : 'none';
+        scr.style.display = 'none';
+        hdr.style.display = 'none';
+        wrn.style.display = 'none';
+        statsEl.style.display = 'none';
+        copyBtn.style.display = 'none';
+    }
+
+    if (!rawA && !rawB) { showEmpty('ph'); return; }
+
+    const ignWS   = document.getElementById('opt-whitespace').checked;
+    const ignCase = document.getElementById('opt-case').checked;
+    const ctxOnly = document.getElementById('opt-context').checked;
+
+    function norm(s) {
+        if (ignWS)   s = s.replace(/\s+/g, ' ').trim();
+        if (ignCase) s = s.toLowerCase();
+        return s;
+    }
+
+    let linesA = rawA.split('\n'), linesB = rawB.split('\n');
+    let truncated = false;
+    if (linesA.length > MAX_LINES || linesB.length > MAX_LINES) {
+        linesA = linesA.slice(0, MAX_LINES);
+        linesB = linesB.slice(0, MAX_LINES);
+        truncated = true;
+    }
+
+    const ops    = lcs(linesA.map(norm), linesB.map(norm));
+    const nIns   = ops.filter(function(o) { return o.t === '+'; }).length;
+    const nDel   = ops.filter(function(o) { return o.t === '-'; }).length;
+    const nEq    = ops.filter(function(o) { return o.t === '='; }).length;
+
+    document.getElementById('stat-ins').textContent = '+' + nIns;
+    document.getElementById('stat-del').textContent = '−' + nDel;
+    document.getElementById('stat-eq').textContent  = '=' + nEq;
+    statsEl.style.display = 'flex';
+
+    if (nIns === 0 && nDel === 0) { showEmpty('id'); return; }
+
+    // Reconstruire avec les vrais textes (pas normalisés) pour l'affichage
+    const displayOps = [];
+    let ai = 0, bi = 0;
+    ops.forEach(function(op) {
+        if (op.t === '=') { displayOps.push({t:'=', l:linesA[ai++], r:linesB[bi++]}); }
+        else if (op.t === '-') { displayOps.push({t:'-', l:linesA[ai++], r:null}); }
+        else { displayOps.push({t:'+', l:null, r:linesB[bi++]}); }
+    });
+
+    const aligned = align(displayOps);
+
+    // Déterminer quels indices afficher (contexte)
+    const visible = new Array(aligned.length).fill(!ctxOnly);
+    if (ctxOnly) {
+        aligned.forEach(function(row, idx) {
+            if (row.type !== 'eq') {
+                for (let k = Math.max(0, idx - CTX); k <= Math.min(aligned.length - 1, idx + CTX); k++) {
+                    visible[k] = true;
+                }
+            }
+        });
+    }
+
+    // Construire le tbody
+    const tbody = document.getElementById('diff-tbody');
+    tbody.innerHTML = '';
+
+    // Numéros de ligne
+    let lnL = 0, lnR = 0;
+    // Précalculer les vrais numéros
+    aligned.forEach(function(row) {
+        if (row.l !== null) lnL++;
+        if (row.r !== null) lnR++;
+        row._lnL = row.l !== null ? lnL : null;
+        row._lnR = row.r !== null ? lnR : null;
+    });
+
+    let lastVis = true;
+    aligned.forEach(function(row, idx) {
+        if (!visible[idx]) { lastVis = false; return; }
+
+        if (!lastVis) {
+            // Séparateur
+            const sep = document.createElement('tr');
+            sep.className = 'row-sep';
+            sep.innerHTML = '<td colspan="4">  ⋯</td>';
+            tbody.appendChild(sep);
+        }
+        lastVis = true;
+
+        const tr = document.createElement('tr');
+        tr.className = 'row-' + row.type;
+
+        // Cellule numéro gauche
+        const lnL = document.createElement('td');
+        lnL.className = 'td-ln td-ln-l';
+        lnL.textContent = row._lnL || '';
+        tr.appendChild(lnL);
+
+        // Cellule contenu gauche
+        const tdL = document.createElement('td');
+        tdL.className = 'td-code td-code-l';
+        if (row.l !== null) {
+            if (row.type === 'chg' && row.r !== null) {
+                tdL.appendChild(inlineNode(diffInline(row.l, row.r), 'l'));
+            } else {
+                tdL.textContent = row.l;
+            }
+        }
+        tr.appendChild(tdL);
+
+        // Cellule numéro droit
+        const lnR = document.createElement('td');
+        lnR.className = 'td-ln td-ln-r';
+        lnR.textContent = row._lnR || '';
+        tr.appendChild(lnR);
+
+        // Cellule contenu droit
+        const tdR = document.createElement('td');
+        tdR.className = 'td-code td-code-r';
+        if (row.r !== null) {
+            if (row.type === 'chg' && row.l !== null) {
+                tdR.appendChild(inlineNode(diffInline(row.l, row.r), 'r'));
+            } else {
+                tdR.textContent = row.r;
+            }
+        }
+        tr.appendChild(tdR);
+
+        tbody.appendChild(tr);
+    });
+
+    ph.style.display  = 'none';
+    idc.style.display = 'none';
+    scr.style.display = '';
+    hdr.style.display = '';
+    wrn.style.display = truncated ? '' : 'none';
+    copyBtn.style.display = '';
+}
+
+// ── Debounce ──────────────────────────────────────────────────────────────
+function schedule() {
+    clearTimeout(debounceT);
+    debounceT = setTimeout(render, 280);
+}
+
+['text-a','text-b'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', schedule);
+});
+['opt-whitespace','opt-case','opt-context'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', render);
+});
+
+// ── Copier ─────────────────────────────────────────────────────────────────
+document.getElementById('copy-btn').addEventListener('click', function() {
+    const rows = [...document.querySelectorAll('#diff-tbody tr:not(.row-sep)')];
+    const lines = rows.map(function(tr) {
+        const l = tr.querySelector('.td-code-l');
+        const r = tr.querySelector('.td-code-r');
+        return (l ? l.textContent : '') + '\t' + (r ? r.textContent : '');
+    });
+    navigator.clipboard.writeText(lines.join('\n'));
+    const btn = this;
+    btn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i> Copié';
+    setTimeout(function() { btn.innerHTML = '<i class="fas fa-copy" aria-hidden="true"></i> Copier'; }, 2000);
+});
+
+// ── Effacer ────────────────────────────────────────────────────────────────
+document.getElementById('clear-btn').addEventListener('click', function() {
+    document.getElementById('text-a').value = '';
+    document.getElementById('text-b').value = '';
+    render();
+});
+</script>
+{% endblock %}

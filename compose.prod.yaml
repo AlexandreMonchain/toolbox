@@ -1,0 +1,74 @@
+services:
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Build args uniquement — GIT_TOKEN ne doit JAMAIS être dans environment:
+        GIT_REPO: ${GIT_REPO:-https://github.com/AlexandreMonchain/toolbox.git}
+        GIT_BRANCH: ${GIT_BRANCH:-main}
+        GIT_USERNAME: ${GIT_USERNAME:-}
+        GIT_TOKEN: ${GIT_TOKEN:-}
+        CACHE_BUST: ${CACHE_BUST:-1}
+
+    container_name: toolbox-web
+    restart: unless-stopped
+
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+      APP_SHARE_DIR: var/share
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?serverVersion=17
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-REMOTE_ADDR}
+      DEFAULT_URI: ${DEFAULT_URI:-https://toolbox.alexandremonchain.fr}
+      MESSENGER_TRANSPORT_DSN: doctrine://default?auto_setup=0
+      MAILER_DSN: null://null
+
+    ports:
+      - "${PORT:-8000}:8080"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - internal
+      # Décommenter quand un RP Nginx partage ce réseau sur le serveur :
+      # - proxy
+
+  db:
+    image: postgres:17-alpine
+    container_name: toolbox-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+    # Pas de ports: — la BDD n'est accessible qu'en réseau interne
+    networks:
+      - internal
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  db_data:
+
+networks:
+  internal:
+    driver: bridge
+  # Décommenter quand le réseau proxy existe sur le serveur (stack Nginx RP) :
+  # proxy:
+  #   external: true

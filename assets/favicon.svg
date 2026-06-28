@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="20" fill="#6366F1"/>
+  <!-- Boîte -->
+  <rect x="18" y="44" width="64" height="38" rx="5" fill="none" stroke="white" stroke-width="6" stroke-linejoin="round"/>
+  <!-- Poignée -->
+  <path d="M36 44 v-10 a8 8 0 0 1 8-8 h12 a8 8 0 0 1 8 8 v10" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Ligne centrale -->
+  <line x1="18" y1="63" x2="82" y2="63" stroke="white" stroke-width="6"/>
+  <!-- Loquet -->
+  <rect x="43" y="57" width="14" height="12" rx="3" fill="white"/>
+</svg>

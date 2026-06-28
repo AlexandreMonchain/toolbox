@@ -1,0 +1,188 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Convertisseur bits/octets — Toolbox{% endblock %}
+{% block og_title %}Convertisseur bits/octets — Toolbox{% endblock %}
+{% block og_description %}Convertissez bits, octets, Ko, Mo, Go, To en décimal (SI) et binaire (IEC). Copie en un clic.{% endblock %}
+
+{% block body %}
+<section class="hero-section">
+    <div class="hero-icon">⇄</div>
+    <h1 class="hero-title">Convertisseur bits/octets</h1>
+    <p class="hero-subtitle">Décimal (SI) et binaire (IEC) — bits, octets, Ko/Kio, Mo/Mio, Go/Gio, To/Tio...</p>
+</section>
+
+<div class="container" style="max-width:680px;">
+    <div class="card-modern">
+
+        <div class="d-flex gap-2 mb-4 align-items-center flex-wrap">
+            <input type="number" id="conv-val" class="form-control" value="1" min="0" step="any"
+                   style="max-width:180px; font-size:1.1rem;" aria-label="Valeur à convertir">
+            <select id="conv-unit" class="form-select" style="max-width:260px;" aria-label="Unité source">
+                <optgroup label="Décimal — bits">
+                    <option value="bit">bit</option>
+                    <option value="kbit">kilobit (kbit)</option>
+                    <option value="mbit">mégabit (Mbit)</option>
+                    <option value="gbit">gigabit (Gbit)</option>
+                    <option value="tbit">térabit (Tbit)</option>
+                    <option value="pbit">pétabit (Pbit)</option>
+                </optgroup>
+                <optgroup label="Décimal — octets (SI)">
+                    <option value="o">octet (o)</option>
+                    <option value="ko">kilooctet (Ko) = 1 000 o</option>
+                    <option value="mo" selected>mégaoctet (Mo) = 1 000 Ko</option>
+                    <option value="go">gigaoctet (Go) = 1 000 Mo</option>
+                    <option value="to">téraoctet (To) = 1 000 Go</option>
+                    <option value="po">pétaoctet (Po) = 1 000 To</option>
+                </optgroup>
+                <optgroup label="Binaire — octets (IEC)">
+                    <option value="kio">kibioctet (Kio) = 1 024 o</option>
+                    <option value="mio">mébioctet (Mio) = 1 024 Kio</option>
+                    <option value="gio">gibioctet (Gio) = 1 024 Mio</option>
+                    <option value="tio">tébioctet (Tio) = 1 024 Gio</option>
+                    <option value="pio">pébioctet (Pio) = 1 024 Tio</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <div id="conv-results"></div>
+    </div>
+</div>
+
+<style nonce="{{ csp_nonce() }}">
+.conv-group-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    padding: 0.75rem 0 0.35rem;
+    border-top: 1px solid var(--color-border);
+    margin-top: 0.5rem;
+}
+.conv-group-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.conv-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.6rem;
+    border-radius: 6px;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: background 150ms;
+}
+.conv-row:hover { background: var(--color-bg-light); }
+.conv-row.is-source { background: var(--color-primary-light); }
+.conv-label { font-size: 0.82rem; color: var(--color-text-secondary); min-width: 160px; flex-shrink: 0; }
+.conv-value { font-family: monospace; font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); flex: 1; text-align: right; }
+.conv-copy-icon { color: var(--color-text-secondary); font-size: 0.75rem; margin-left: 0.5rem; opacity: 0.5; flex-shrink: 0; }
+.conv-row:hover .conv-copy-icon { opacity: 1; }
+.conv-copied { color: var(--color-primary) !important; opacity: 1 !important; }
+</style>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+
+const UNITS = [
+    // SI bits
+    { id: 'bit',  label: 'bit',             group: 'si',  bits: 1 },
+    { id: 'kbit', label: 'kilobit (kbit)',   group: 'si',  bits: 1e3 },
+    { id: 'mbit', label: 'mégabit (Mbit)',   group: 'si',  bits: 1e6 },
+    { id: 'gbit', label: 'gigabit (Gbit)',   group: 'si',  bits: 1e9 },
+    { id: 'tbit', label: 'térabit (Tbit)',   group: 'si',  bits: 1e12 },
+    { id: 'pbit', label: 'pétabit (Pbit)',   group: 'si',  bits: 1e15 },
+    // SI octets
+    { id: 'o',    label: 'octet (o)',        group: 'si',  bits: 8 },
+    { id: 'ko',   label: 'kilooctet (Ko)',   group: 'si',  bits: 8e3 },
+    { id: 'mo',   label: 'mégaoctet (Mo)',   group: 'si',  bits: 8e6 },
+    { id: 'go',   label: 'gigaoctet (Go)',   group: 'si',  bits: 8e9 },
+    { id: 'to',   label: 'téraoctet (To)',   group: 'si',  bits: 8e12 },
+    { id: 'po',   label: 'pétaoctet (Po)',   group: 'si',  bits: 8e15 },
+    // IEC
+    { id: 'kio',  label: 'kibioctet (Kio)', group: 'iec', bits: 8 * 1024 },
+    { id: 'mio',  label: 'mébioctet (Mio)', group: 'iec', bits: 8 * 1048576 },
+    { id: 'gio',  label: 'gibioctet (Gio)', group: 'iec', bits: 8 * 1073741824 },
+    { id: 'tio',  label: 'tébioctet (Tio)', group: 'iec', bits: 8 * 1099511627776 },
+    { id: 'pio',  label: 'pébioctet (Pio)', group: 'iec', bits: 8 * 1125899906842624 },
+];
+
+function fmt(n) {
+    if (!isFinite(n) || isNaN(n)) return '—';
+    if (n === 0) return '0';
+    const abs = Math.abs(n);
+    if (abs < 1e-6 || abs >= 1e18) {
+        return n.toExponential(4).replace('.', ',');
+    }
+    return parseFloat(n.toPrecision(7)).toLocaleString('fr-FR', { maximumFractionDigits: 10 });
+}
+
+function render() {
+    const rawVal = parseFloat(document.getElementById('conv-val').value);
+    const srcId  = document.getElementById('conv-unit').value;
+    const container = document.getElementById('conv-results');
+
+    if (isNaN(rawVal) || rawVal < 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const src = UNITS.find(u => u.id === srcId);
+    const totalBits = rawVal * src.bits;
+
+    container.innerHTML = '';
+
+    let lastGroup = null;
+
+    for (const u of UNITS) {
+        if (u.group !== lastGroup) {
+            const title = document.createElement('div');
+            title.className = 'conv-group-title';
+            title.textContent = u.group === 'si' ? 'Décimal – SI (base 10)' : 'Binaire – IEC (base 2)';
+            container.appendChild(title);
+            lastGroup = u.group;
+        }
+
+        const val = totalBits / u.bits;
+        const row = document.createElement('div');
+        row.className = 'conv-row' + (u.id === srcId ? ' is-source' : '');
+        row.title = 'Copier';
+        row.setAttribute('role', 'button');
+        row.setAttribute('tabindex', '0');
+
+        const lbl = document.createElement('span');
+        lbl.className = 'conv-label';
+        lbl.textContent = u.label;
+
+        const valEl = document.createElement('span');
+        valEl.className = 'conv-value';
+        valEl.textContent = fmt(val);
+
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-copy conv-copy-icon';
+        icon.setAttribute('aria-hidden', 'true');
+
+        row.appendChild(lbl);
+        row.appendChild(valEl);
+        row.appendChild(icon);
+
+        const rawStr = String(val);
+        row.addEventListener('click', () => copyRow(row, icon, rawStr));
+        row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') copyRow(row, icon, rawStr); });
+
+        container.appendChild(row);
+    }
+}
+
+function copyRow(row, icon, text) {
+    navigator.clipboard.writeText(text).then(() => {
+        icon.className = 'fas fa-check conv-copy-icon conv-copied';
+        setTimeout(() => { icon.className = 'fas fa-copy conv-copy-icon'; }, 1200);
+    }).catch(() => {});
+}
+
+document.getElementById('conv-val').addEventListener('input', render);
+document.getElementById('conv-unit').addEventListener('change', render);
+render();
+
+})();
+</script>
+{% endblock %}

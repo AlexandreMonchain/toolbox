@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}BurnNote — Lien expiré{% endblock %}
+
+{% block body %}
+    <section class="hero-section">
+        <div class="hero-icon">💨</div>
+        <h1 class="hero-title">Ce lien n'existe plus</h1>
+        <p class="hero-subtitle">Ce secret a déjà été consulté, a expiré, ou n'a jamais existé.</p>
+    </section>
+
+    <div class="container text-center" style="max-width: 480px;">
+        <a href="{{ path('burnnote_index') }}" class="btn btn-primary">
+            <i class="fas fa-plus" aria-hidden="true"></i> Créer un nouveau BurnNote
+        </a>
+    </div>
+{% endblock %}
