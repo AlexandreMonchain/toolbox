@@ -27,5 +27,5 @@
 
 ###> symfony/asset-mapper ###
 /public/assets/
-/assets/vendor/
+# assets/vendor/ intentionnellement tracké : évite la dépendance jspm.io au build Docker
 ###< symfony/asset-mapper ###
