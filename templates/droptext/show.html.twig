@@ -77,11 +77,11 @@
 
 {% block script %}
 {# Thème CSS highlight.js — servi localement (CSP : self) #}
-<link id="hljs-css" rel="stylesheet" href="{{ asset('assets/hljs/github.min.css') }}">
+<link id="hljs-css" rel="stylesheet" href="{{ asset('hljs/github.min.css') }}">
 
 {# highlight.js — servi localement, pas de nonce requis (script-src 'self') #}
-<script src="{{ asset('assets/hljs/highlight.min.js') }}"></script>
-<script src="{{ asset('assets/hljs/powershell.min.js') }}"></script>
+<script src="{{ asset('hljs/highlight.min.js') }}"></script>
+<script src="{{ asset('hljs/powershell.min.js') }}"></script>
 
 <script nonce="{{ csp_nonce() }}">
 // ── Thème réactif clair / sombre ─────────────────────────────────────────────
@@ -89,8 +89,8 @@ const cssLink = document.getElementById('hljs-css');
 function applyHljsTheme() {
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';
     cssLink.href = dark
-        ? '{{ asset('assets/hljs/github-dark-dimmed.min.css') }}'
-        : '{{ asset('assets/hljs/github.min.css') }}';
+        ? '{{ asset('hljs/github-dark-dimmed.min.css') }}'
+        : '{{ asset('hljs/github.min.css') }}';
 }
 applyHljsTheme();
 new MutationObserver(applyHljsTheme)

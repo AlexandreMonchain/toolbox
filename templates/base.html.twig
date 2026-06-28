@@ -11,7 +11,7 @@
         <meta property="og:url" content="{{ app.request.uri }}">
         <meta property="og:type" content="website">
         <meta property="og:site_name" content="Toolbox">
-        <link rel="icon" href="{{ asset('assets/favicon.svg') }}" type="image/svg+xml">
+        <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
         <!-- Theme: set immediately to avoid flash of wrong theme -->
         <script nonce="{{ csp_nonce() }}">(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
         <!-- Google Fonts: Inter -->
@@ -21,14 +21,14 @@
         <!-- Font Awesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
         <title>{% block title %}Toolbox{% endblock %}</title>
-        <link rel="stylesheet" href="{{ asset('assets/bootstrap.min.css') }}">
-        <link rel="stylesheet" href="{{ asset('assets/app.css') }}">
+        <link rel="stylesheet" href="{{ asset('bootstrap.min.css') }}">
+        <link rel="stylesheet" href="{{ asset('app.css') }}">
     </head>
     <body>
         <nav class="navbar-modern">
             <div class="nav-container">
                 <a class="nav-logo" href="{{ path('app_home') }}">
-                    <img src="{{ asset('assets/favicon.svg') }}" width="26" height="26" alt="" aria-hidden="true"> Toolbox
+                    <img src="{{ asset('favicon.svg') }}" width="26" height="26" alt="" aria-hidden="true"> Toolbox
                 </a>
                 <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
                     <span></span>
@@ -68,7 +68,7 @@
             </div>
         </footer>
 
-        <script src="{{ asset('assets/bootstrap.min.js') }}" defer></script>
+        <script src="{{ asset('bootstrap.min.js') }}" defer></script>
         <script nonce="{{ csp_nonce() }}">
             document.getElementById('nav-toggle').addEventListener('click', function() {
                 document.getElementById('navMenu').classList.toggle('active');
