@@ -15,7 +15,7 @@
         <div class="d-flex justify-content-center gap-3 mb-4 flex-wrap">
             <span class="bn-badge">
                 <i class="fas fa-eye fa-fw" aria-hidden="true"></i>
-                {% if maxViews >= 9223372036854775807 %}
+                {% if maxViews is null %}
                     Vues illimitées
                 {% elseif maxViews == 1 %}
                     1 vue restante · sera détruite après

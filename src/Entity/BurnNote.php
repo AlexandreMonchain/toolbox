@@ -25,8 +25,9 @@ class BurnNote
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $passphraseHash = null;
 
-    #[ORM\Column]
-    private int $viewsRemaining;
+    /** NULL = vues illimitées (la note ne s'autodétruit qu'à expiration). */
+    #[ORM\Column(nullable: true)]
+    private ?int $viewsRemaining = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $expiresAt;
@@ -58,8 +59,11 @@ class BurnNote
     public function setPassphraseHash(?string $hash): static { $this->passphraseHash = $hash; return $this; }
     public function hasPassphrase(): bool { return $this->passphraseHash !== null; }
 
-    public function getViewsRemaining(): int { return $this->viewsRemaining; }
-    public function setViewsRemaining(int $viewsRemaining): static { $this->viewsRemaining = $viewsRemaining; return $this; }
+    public function getViewsRemaining(): ?int { return $this->viewsRemaining; }
+    public function setViewsRemaining(?int $viewsRemaining): static { $this->viewsRemaining = $viewsRemaining; return $this; }
+
+    /** NULL = vues illimitées. */
+    public function isUnlimited(): bool { return $this->viewsRemaining === null; }
 
     public function getExpiresAt(): \DateTimeImmutable { return $this->expiresAt; }
     public function setExpiresAt(\DateTimeImmutable $expiresAt): static { $this->expiresAt = $expiresAt; return $this; }
@@ -73,7 +77,7 @@ class BurnNote
     {
         return !$this->expired
             && $this->payload !== null
-            && $this->viewsRemaining > 0
+            && ($this->viewsRemaining === null || $this->viewsRemaining > 0)
             && $this->expiresAt > new \DateTimeImmutable();
     }
 

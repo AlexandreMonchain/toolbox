@@ -25,12 +25,14 @@ class BurnNoteRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
+        // views_remaining = NULL → vues illimitées : on ne décrémente pas et on laisse toujours passer.
+        // Reste un UPDATE unique et atomique (anti-race), pas de find + update séparé.
         $affected = $conn->executeStatement(
             'UPDATE burn_note
-             SET views_remaining = views_remaining - 1
+             SET views_remaining = CASE WHEN views_remaining IS NULL THEN NULL ELSE views_remaining - 1 END
              WHERE token = :token
                AND expired = false
-               AND views_remaining > 0
+               AND (views_remaining IS NULL OR views_remaining > 0)
                AND expires_at > NOW()',
             ['token' => $token]
         );

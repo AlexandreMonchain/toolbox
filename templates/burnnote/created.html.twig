@@ -8,7 +8,7 @@
         <h1 class="hero-title">Lien créé</h1>
         <p class="hero-subtitle">
             Copiez ce lien et envoyez-le à votre destinataire.
-            {% if maxViews >= 9223372036854775807 %}
+            {% if maxViews is null %}
                 Il peut être ouvert un nombre illimité de fois jusqu'à expiration.
             {% elseif maxViews == 1 %}
                 Il ne pourra être ouvert qu'une seule fois.

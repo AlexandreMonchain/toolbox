@@ -91,9 +91,9 @@ class BurnNoteController extends AbstractController
 
         $ttl = max(1, min(720, $ttl));
 
-        // 101 = illimité (valeur sentinelle du slider)
+        // 101 = illimité (valeur sentinelle du slider) → stocké en NULL
         $unlimited = $maxViews >= 101;
-        $maxViews  = $unlimited ? PHP_INT_MAX : max(1, min(100, $maxViews));
+        $maxViews  = $unlimited ? null : max(1, min(100, $maxViews));
 
         $encrypted = $encryption->encrypt($secret);
 
